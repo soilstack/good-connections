@@ -33,15 +33,14 @@ const STRIPE_STROKE = 6
 
 const DIAMOND_PATH = `M50 4 L96 ${VB_H / 2} L50 ${VB_H - 4} L4 ${VB_H / 2} Z`
 
-// Vertical squiggle: an S-ribbon with 180-degree point symmetry about the
-// centre (top lobe bulges right, bottom lobe bulges left). The second half of
-// the outline is the point-symmetric image of the first. Tuned by eye against
-// docs/reference-cards.png.
+// Vertical squiggle: a fat, rounded ribbon with 180-degree point symmetry —
+// a top lobe leaning left and a bottom lobe leaning right, per
+// docs/correct-squiggle.jpeg. The outline's second half is the point-symmetric
+// image of the first (each control point p maps to (100-x, 250-y)).
 const SQUIGGLE_PATH =
-  'M50 12 C80 15, 90 40, 82 70 C74 100, 56 105, 58 125 ' +
-  'C60 150, 44 160, 40 190 C36 215, 45 235, 50 238 ' +
-  'C20 235, 10 210, 18 180 C26 150, 44 145, 42 125 ' +
-  'C40 100, 56 90, 60 60 C64 35, 55 15, 50 12 Z'
+  'M50 14 C74 18, 68 58, 54 86 C42 116, 78 138, 80 170 ' +
+  'C82 200, 68 230, 50 236 C26 232, 32 192, 46 164 ' +
+  'C58 134, 22 112, 20 80 C18 50, 32 20, 50 14 Z'
 
 function StripePattern({ id, colour }: { id: string; colour: string }) {
   return (
