@@ -42,3 +42,19 @@ export {
   generateModeB,
   generateBoard,
 } from './board'
+
+export {
+  type GameContext,
+  type CardIndex,
+  type TelemetryEvent,
+  type TelemetryEventType,
+  type GameRecord,
+  type GameStats,
+  type SolveTimeAggregate,
+  type StandingRow,
+  GameRecorder,
+  deriveStats,
+  aggregateSolveTimes,
+  completionRate,
+  standings,
+} from './telemetry'
