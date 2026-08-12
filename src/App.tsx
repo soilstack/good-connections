@@ -1,59 +1,44 @@
-import { type Card as SetCard, type Attr } from './game/cards'
-import { Card } from './ui/Card'
+import { useState, useCallback } from 'react'
+import { generateBoard, type Board, type Mode } from './game/board'
+import { Menu } from './ui/Menu'
+import { Game } from './ui/Game'
 
 /**
- * Slice-1 scaffold. For now this is a card gallery used to verify the <Card>
- * renderer against docs/reference-cards.png — every shape, fill, colour, and
- * count. The play UI replaces it next.
+ * Slice-1 practice app: a menu to pick a mode, then a single fixed-board game
+ * ending in a summary. Practice boards are generated fresh here, with no access
+ * to any league board (there is none yet) — see CLAUDE.md.
  */
 
-const attrs: Attr[] = [0, 1, 2]
-const SHAPE_NAMES = ['diamond', 'squiggle', 'oval']
-const FILL_NAMES = ['solid', 'striped', 'open']
-
-function c(count: Attr, colour: Attr, shape: Attr, fill: Attr): SetCard {
-  return { count, colour, shape, fill }
+interface Playing {
+  board: Board
+  // A key so "play again" remounts the Game (fresh recorder + clock).
+  gameId: number
 }
 
 export function App() {
-  return (
-    <main className="page">
-      <header className="page-head">
-        <h1>Set</h1>
-        <p className="muted">Card renderer preview — every shape × fill × colour, plus counts.</p>
-      </header>
+  const [playing, setPlaying] = useState<Playing | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
 
-      {/* Counts 1–3 for one representative card */}
-      <section>
-        <h2>Counts</h2>
-        <div className="grid grid-3">
-          {attrs.map((count) => (
-            <div className="cell" key={count}>
-              <Card card={c(count, 2, 1, 1)} />
-              <span className="cap">{count + 1}</span>
-            </div>
-          ))}
-        </div>
-      </section>
+  const start = useCallback((mode: Mode) => {
+    const board = generateBoard(mode, Math.random)
+    setPlaying({ board, gameId: Date.now() })
+  }, [])
 
-      {/* Every shape × fill, shown per colour */}
-      {attrs.map((colour) => (
-        <section key={colour}>
-          <h2 className="cap-title">{['red', 'green', 'purple'][colour]}</h2>
-          <div className="grid grid-9">
-            {attrs.map((shape) =>
-              attrs.map((fill) => (
-                <div className="cell" key={`${shape}-${fill}`}>
-                  <Card card={c(1, colour, shape, fill)} />
-                  <span className="cap">
-                    {SHAPE_NAMES[shape]} · {FILL_NAMES[fill]}
-                  </span>
-                </div>
-              )),
-            )}
-          </div>
-        </section>
-      ))}
-    </main>
-  )
+  const playAgain = useCallback(() => {
+    setPlaying((prev) => {
+      if (!prev) return prev
+      const board = generateBoard(prev.board.mode, Math.random)
+      return { board, gameId: Date.now() }
+    })
+    setRefreshKey((k) => k + 1)
+  }, [])
+
+  const toMenu = useCallback(() => {
+    setPlaying(null)
+    setRefreshKey((k) => k + 1)
+  }, [])
+
+  if (!playing) return <Menu onStart={start} refreshKey={refreshKey} />
+
+  return <Game key={playing.gameId} board={playing.board} onPlayAgain={playAgain} onMenu={toMenu} />
 }

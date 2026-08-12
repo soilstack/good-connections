@@ -93,6 +93,11 @@ export class GameRecorder {
     this.startedAtMs = opts.now()
   }
 
+  /** Wall-clock ms captured at board reveal. For a UI live clock. */
+  startTimeMs(): number {
+    return this.startedAtMs
+  }
+
   /** Milliseconds since board reveal, per the injected clock. */
   private t(): number {
     return this.now() - this.startedAtMs
