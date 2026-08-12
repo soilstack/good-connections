@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# Deno (used locally to run the Vitest suite before Node is installed)
+deno.lock
+
 # Build output
 dist/
 dist-ssr/

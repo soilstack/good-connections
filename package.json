@@ -1,0 +1,16 @@
+{
+  "name": "set",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Set — league play with solve telemetry. Pure game-logic core (slice 1).",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0",
+    "vitest": "^2.1.0"
+  }
+}
