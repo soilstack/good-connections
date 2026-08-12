@@ -12,7 +12,7 @@ interface BoardProps {
 
 export function Board({ cards, selected, feedback, disabled, onToggle }: BoardProps) {
   return (
-    <div className="board">
+    <div className={`board${selected.length > 0 ? ' has-selection' : ''}`}>
       {cards.map((card, i) => {
         const isSelected = selected.includes(i)
         const fb = feedback && feedback.cards.includes(i) ? feedback.kind : null

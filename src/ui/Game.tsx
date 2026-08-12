@@ -3,7 +3,14 @@ import { useSetGame } from './useSetGame'
 import { Board as BoardGrid } from './Board'
 import { AbandonDialog } from './AbandonDialog'
 import { Summary } from './Summary'
+import { Card } from './Card'
 import { formatTime } from './format'
+
+const FEEDBACK_TEXT: Record<'valid' | 'invalid' | 'duplicate', string> = {
+  valid: 'New set!',
+  invalid: 'Not a set',
+  duplicate: 'Already found',
+}
 
 interface GameProps {
   board: Board
@@ -14,6 +21,7 @@ interface GameProps {
 export function Game({ board, onPlayAgain, onMenu }: GameProps) {
   const game = useSetGame(board, 'local')
   const showDenominator = board.mode === 'A'
+  const foundSets = [...game.found].map((idx) => board.sets[idx]!)
 
   if (game.status === 'ended' && game.stats && game.endReason) {
     return (
@@ -49,6 +57,14 @@ export function Game({ board, onPlayAgain, onMenu }: GameProps) {
         </div>
       </header>
 
+      <div className="feedback-slot" aria-live="polite">
+        {game.feedback && (
+          <div className={`feedback-banner fb-${game.feedback.kind}`} role="status">
+            {FEEDBACK_TEXT[game.feedback.kind]}
+          </div>
+        )}
+      </div>
+
       <BoardGrid
         cards={board.cards}
         selected={game.selected}
@@ -56,6 +72,25 @@ export function Game({ board, onPlayAgain, onMenu }: GameProps) {
         disabled={game.abandonOpen}
         onToggle={game.toggleCard}
       />
+
+      {foundSets.length > 0 && (
+        <section className="found-strip">
+          <h2>
+            Found sets <span className="found-count">{foundSets.length}</span>
+          </h2>
+          <div className="found-list">
+            {foundSets.map((set, si) => (
+              <div className="found-set" key={si}>
+                {set.map((ci) => (
+                  <div className="mini-card" key={ci}>
+                    <Card card={board.cards[ci]!} />
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {game.abandonOpen && (
         <AbandonDialog

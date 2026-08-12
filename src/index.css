@@ -179,6 +179,82 @@ body {
   font-weight: 700;
 }
 
+/* ---- outcome feedback banner ---- */
+.feedback-slot {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 6px 0 2px;
+}
+.feedback-banner {
+  font-weight: 700;
+  font-size: 15px;
+  padding: 6px 18px;
+  border-radius: 999px;
+  animation: pop 0.16s ease;
+}
+.feedback-banner.fb-valid {
+  background: rgba(46, 204, 113, 0.18);
+  color: var(--ok);
+}
+.feedback-banner.fb-invalid {
+  background: rgba(255, 84, 112, 0.18);
+  color: var(--bad);
+}
+.feedback-banner.fb-duplicate {
+  background: rgba(245, 181, 68, 0.18);
+  color: var(--warn);
+}
+@keyframes pop {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ---- found-sets strip ---- */
+.found-strip {
+  margin-top: 20px;
+}
+.found-strip h2 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+}
+.found-count {
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 1px 9px;
+  font-size: 12px;
+}
+.found-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.found-set {
+  display: flex;
+  gap: 4px;
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: 5px;
+}
+.found-set .mini-card {
+  width: 42px;
+}
+
 /* ---- board grid ---- */
 .board {
   display: grid;
@@ -193,33 +269,40 @@ body {
   background: transparent;
   cursor: pointer;
   border-radius: 14px;
-  transition: transform 0.12s ease;
+  transition: transform 0.12s ease, opacity 0.12s ease;
 }
 .card-btn .set-card {
   border: 1px solid var(--card-border);
   transition: outline-color 0.1s ease, box-shadow 0.12s ease;
 }
+/* Dim the rest once anything is selected, so the picks stand out. */
+.board.has-selection .card-btn:not(.is-selected) {
+  opacity: 0.45;
+}
 .card-btn.is-selected {
-  transform: translateY(-4px) scale(1.03);
+  transform: translateY(-7px) scale(1.06);
+  z-index: 2;
 }
 .card-btn.is-selected .set-card {
-  outline: 3px solid var(--accent);
-  outline-offset: 2px;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45);
+  outline: 5px solid var(--accent);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px rgba(79, 140, 255, 0.4), 0 12px 24px rgba(0, 0, 0, 0.55);
 }
 .card-btn.fb-valid .set-card {
-  outline: 3px solid var(--ok);
-  outline-offset: 2px;
-  box-shadow: 0 0 0 4px rgba(46, 204, 113, 0.35);
+  outline: 5px solid var(--ok);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px rgba(46, 204, 113, 0.4);
 }
 .card-btn.fb-invalid .set-card {
-  outline: 3px solid var(--bad);
-  outline-offset: 2px;
+  outline: 5px solid var(--bad);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px rgba(255, 84, 112, 0.35);
   animation: shake 0.3s ease;
 }
 .card-btn.fb-duplicate .set-card {
-  outline: 3px solid var(--warn);
-  outline-offset: 2px;
+  outline: 5px solid var(--warn);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px rgba(245, 181, 68, 0.35);
 }
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
