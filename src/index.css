@@ -64,11 +64,11 @@ section h2 {
 
 .grid-3 {
   grid-template-columns: repeat(3, 1fr);
-  max-width: 360px;
+  max-width: 560px;
 }
 
 .grid-9 {
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
 }
 
 .cell {
@@ -87,8 +87,8 @@ section h2 {
 /* The card face: a light rounded tile the SVG symbols sit on. */
 .set-card {
   width: 100%;
-  max-width: 120px;
-  aspect-ratio: 140 / 200;
+  max-width: 180px;
+  aspect-ratio: 190 / 140;
   background: var(--card-face);
   border: 1px solid var(--card-border);
   border-radius: 12px;
