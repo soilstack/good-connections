@@ -38,9 +38,9 @@ const DIAMOND_PATH = `M50 4 L96 ${VB_H / 2} L50 ${VB_H - 4} L4 ${VB_H / 2} Z`
 // docs/correct-squiggle.jpeg. The outline's second half is the point-symmetric
 // image of the first (each control point p maps to (100-x, 250-y)).
 const SQUIGGLE_PATH =
-  'M50 14 C74 18, 68 58, 54 86 C42 116, 78 138, 80 170 ' +
-  'C82 200, 68 230, 50 236 C26 232, 32 192, 46 164 ' +
-  'C58 134, 22 112, 20 80 C18 50, 32 20, 50 14 Z'
+  'M50 8 C82 14, 78 52, 60 86 C44 120, 88 140, 88 172 ' +
+  'C88 210, 72 238, 50 242 C18 236, 22 198, 40 164 ' +
+  'C56 130, 12 110, 12 78 C12 40, 28 12, 50 8 Z'
 
 function StripePattern({ id, colour }: { id: string; colour: string }) {
   return (
