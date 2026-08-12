@@ -38,3 +38,5 @@ desktop.ini
 # Local overrides
 *.local
 .claude/settings.local.json
+# Deploy bundle
+set-app.zip
