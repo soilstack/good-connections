@@ -1,0 +1,96 @@
+:root {
+  --bg: #0f1220;
+  --surface: #1a1f36;
+  --card-face: #fbfbfd;
+  --card-border: #2a3157;
+  --text: #e8eaf2;
+  --muted: #9aa0be;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+.page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px 16px calc(24px + env(safe-area-inset-bottom));
+}
+
+.page-head h1 {
+  margin: 0 0 4px;
+  font-size: 28px;
+}
+
+.muted {
+  color: var(--muted);
+  margin: 0;
+}
+
+section {
+  margin-top: 28px;
+}
+
+section h2 {
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 0 0 12px;
+}
+
+.cap-title {
+  color: var(--text) !important;
+}
+
+.grid {
+  display: grid;
+  gap: 12px;
+}
+
+.grid-3 {
+  grid-template-columns: repeat(3, 1fr);
+  max-width: 360px;
+}
+
+.grid-9 {
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.cap {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* The card face: a light rounded tile the SVG symbols sit on. */
+.set-card {
+  width: 100%;
+  max-width: 120px;
+  aspect-ratio: 140 / 200;
+  background: var(--card-face);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  display: block;
+}

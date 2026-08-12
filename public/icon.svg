@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#0f1220" />
+  <!-- three Set symbols, one per colour -->
+  <g stroke-width="14" fill="none">
+    <path d="M256 96 L336 160 L256 224 L176 160 Z" fill="#e4002b" stroke="#e4002b" />
+    <rect x="176" y="232" width="160" height="60" rx="30" fill="none" stroke="#12a150" />
+    <path d="M176 328 L336 328 L336 388 L176 388 Z" fill="#6c2d9c" stroke="#6c2d9c" opacity="0.9" />
+  </g>
+</svg>
