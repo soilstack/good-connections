@@ -86,6 +86,7 @@ export function Game({ board, session, onExit, onPlayAgain }: GameProps) {
           leagueId={session.leagueId}
           leagueName={session.leagueName}
           puzzleDate={session.puzzleDate}
+          mode={board.mode}
           userId={session.userId}
           stats={game.stats}
           endReason={game.endReason}

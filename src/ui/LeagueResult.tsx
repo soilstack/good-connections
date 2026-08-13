@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react'
+import type { Mode } from '../game/board'
 import type { GameStats } from '../game/telemetry'
 import { getLeaderboard, type LeaderboardRow } from '../lib/leagues'
 import { formatTime } from './format'
 import { SolveTimelineView } from './SolveTimelineView'
+import { LeagueStatsView } from './LeagueStatsView'
 
 interface LeagueResultProps {
   leagueId: string
   leagueName: string
   puzzleDate: string
+  mode: Mode
   userId: string
   /** The just-finished game's stats, or omitted when the puzzle was already played earlier. */
   stats?: GameStats | null
@@ -28,6 +31,7 @@ export function LeagueResult({
   leagueId,
   leagueName,
   puzzleDate,
+  mode,
   userId,
   stats,
   endReason,
@@ -107,6 +111,8 @@ export function LeagueResult({
           </>
         )}
       </section>
+
+      <LeagueStatsView leagueId={leagueId} mode={mode} currentUserId={userId} />
 
       <div className="summary-actions">
         <button type="button" className="btn btn-primary" onClick={onExit}>

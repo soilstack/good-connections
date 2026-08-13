@@ -127,6 +127,127 @@ export async function getLeaderboard(leagueId: string, puzzleDate: string): Prom
   return rows.filter((r) => (seen.has(r.userId) ? false : (seen.add(r.userId), true)))
 }
 
+// --- league-wide records / member stats (all-time) -------------------------
+
+export interface SoloRecord {
+  displayName: string
+  timeMs: number
+  puzzleDate: string
+}
+
+export interface MemberStat {
+  userId: string
+  displayName: string
+  gamesPlayed: number
+  gamesCompleted: number
+  completionRate: number
+  bestTimeMs: number | null
+  /** Consecutive calendar days completed, ending at the member's latest. */
+  currentStreak: number
+}
+
+export interface LeagueStats {
+  mode: Mode
+  /** Mode A: top-3 fastest completed solves. */
+  topSolves: SoloRecord[]
+  /** Mode B: fastest completed solve for each board set-count. */
+  fastestBySetCount: { setCount: number; record: SoloRecord }[]
+  members: MemberStat[]
+}
+
+function prevDateISO(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  const dt = new Date(Date.UTC(y, m - 1, d))
+  dt.setUTCDate(dt.getUTCDate() - 1)
+  return dt.toISOString().slice(0, 10)
+}
+
+function currentStreak(completedDates: string[]): number {
+  if (completedDates.length === 0) return 0
+  const days = new Set(completedDates)
+  const latest = [...days].sort()[days.size - 1]!
+  let streak = 0
+  let day = latest
+  while (days.has(day)) {
+    streak++
+    day = prevDateISO(day)
+  }
+  return streak
+}
+
+/** All-time records + per-member stats for a league. */
+export async function getLeagueStats(leagueId: string, mode: Mode): Promise<LeagueStats> {
+  const { data, error } = await supabase
+    .from('game_records')
+    .select('user_id, puzzle_date, total_sets, events')
+    .eq('context', 'league')
+    .eq('league_id', leagueId)
+  if (error) throw new Error(error.message)
+  const recs = (data ?? []) as {
+    user_id: string
+    puzzle_date: string
+    total_sets: number
+    events: TelemetryEvent[]
+  }[]
+
+  const userIds = [...new Set(recs.map((r) => r.user_id))]
+  const names = new Map<string, string>()
+  if (userIds.length > 0) {
+    const { data: profs } = await supabase.from('profiles').select('id, display_name').in('id', userIds)
+    for (const p of (profs ?? []) as { id: string; display_name: string }[]) {
+      names.set(p.id, p.display_name)
+    }
+  }
+
+  const games = recs.map((r) => ({
+    userId: r.user_id,
+    name: names.get(r.user_id) ?? '—',
+    date: r.puzzle_date,
+    setCount: r.total_sets,
+    stats: deriveStats({ events: r.events } as GameRecord),
+  }))
+  const completed = games.filter((g) => g.stats.completed && g.stats.totalTimeMs !== null)
+
+  const topSolves: SoloRecord[] = [...completed]
+    .sort((a, b) => a.stats.totalTimeMs! - b.stats.totalTimeMs!)
+    .slice(0, 3)
+    .map((g) => ({ displayName: g.name, timeMs: g.stats.totalTimeMs!, puzzleDate: g.date }))
+
+  const byCount = new Map<number, SoloRecord>()
+  for (const g of completed) {
+    const cur = byCount.get(g.setCount)
+    if (!cur || g.stats.totalTimeMs! < cur.timeMs) {
+      byCount.set(g.setCount, { displayName: g.name, timeMs: g.stats.totalTimeMs!, puzzleDate: g.date })
+    }
+  }
+  const fastestBySetCount = [...byCount.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([setCount, record]) => ({ setCount, record }))
+
+  const byUser = new Map<string, typeof games>()
+  for (const g of games) {
+    const arr = byUser.get(g.userId) ?? []
+    arr.push(g)
+    byUser.set(g.userId, arr)
+  }
+  const members: MemberStat[] = [...byUser.entries()]
+    .map(([userId, gs]) => {
+      const comp = gs.filter((g) => g.stats.completed && g.stats.totalTimeMs !== null)
+      return {
+        userId,
+        displayName: names.get(userId) ?? '—',
+        gamesPlayed: gs.length,
+        gamesCompleted: comp.length,
+        completionRate: gs.length > 0 ? comp.length / gs.length : 0,
+        bestTimeMs: comp.length > 0 ? Math.min(...comp.map((g) => g.stats.totalTimeMs!)) : null,
+        currentStreak: currentStreak(comp.map((g) => g.date)),
+      }
+    })
+    .sort((a, b) => (a.bestTimeMs ?? Infinity) - (b.bestTimeMs ?? Infinity))
+
+  return { mode, topSolves, fastestBySetCount, members }
+}
+
 /** Has the signed-in user already submitted a game for this league + date? */
 export async function hasPlayedToday(leagueId: string, puzzleDate: string): Promise<boolean> {
   const { data: userData } = await supabase.auth.getUser()

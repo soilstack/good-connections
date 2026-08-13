@@ -120,6 +120,7 @@ export function App() {
           leagueId={league.league.id}
           leagueName={league.league.name}
           puzzleDate={league.puzzleDate}
+          mode={league.league.mode}
           userId={league.userId}
           onExit={exitLeague}
         />,
