@@ -146,6 +146,15 @@ export interface MemberStat {
   currentStreak: number
 }
 
+/** A "hall of fame/shame" superlative — the single game that maxed some metric. */
+export interface NotableRecord {
+  label: string
+  displayName: string
+  value: number
+  unit: 'count' | 'time'
+  puzzleDate: string
+}
+
 export interface LeagueStats {
   mode: Mode
   /** Mode A: top-3 fastest completed solves. */
@@ -153,6 +162,7 @@ export interface LeagueStats {
   /** Mode B: fastest completed solve for each board set-count. */
   fastestBySetCount: { setCount: number; record: SoloRecord }[]
   members: MemberStat[]
+  notables: NotableRecord[]
 }
 
 function prevDateISO(iso: string): string {
@@ -245,7 +255,29 @@ export async function getLeagueStats(leagueId: string, mode: Mode): Promise<Leag
     })
     .sort((a, b) => (a.bestTimeMs ?? Infinity) - (b.bestTimeMs ?? Infinity))
 
-  return { mode, topSolves, fastestBySetCount, members }
+  const notable = (
+    label: string,
+    unit: 'count' | 'time',
+    metric: (g: (typeof games)[number]) => number,
+  ): NotableRecord | null => {
+    let best: { g: (typeof games)[number]; value: number } | null = null
+    for (const g of games) {
+      const v = metric(g)
+      if (v > 0 && (best === null || v > best.value)) best = { g, value: v }
+    }
+    return best
+      ? { label, displayName: best.g.name, value: best.value, unit, puzzleDate: best.g.date }
+      : null
+  }
+  const notables = [
+    notable('Most wrong guesses in a game', 'count', (g) => g.stats.errorCount),
+    notable('Most repeat picks in a game', 'count', (g) => g.stats.duplicateCount),
+    notable('Longest stall between sets', 'time', (g) =>
+      g.stats.setIntervalsMs.length > 0 ? Math.max(...g.stats.setIntervalsMs) : 0,
+    ),
+  ].filter((n): n is NotableRecord => n !== null)
+
+  return { mode, topSolves, fastestBySetCount, members, notables }
 }
 
 /** Has the signed-in user already submitted a game for this league + date? */

@@ -81,6 +81,23 @@ export function LeagueStatsView({ leagueId, mode, currentUserId }: Props) {
           </li>
         ))}
       </ol>
+
+      {stats.notables.length > 0 && (
+        <>
+          <h2 className="section-label section-label-gap">Notable</h2>
+          <ol className="member-list">
+            {stats.notables.map((n, i) => (
+              <li key={i} className="member-row">
+                <span className="member-name">{n.label}</span>
+                <span className="member-detail">
+                  {n.displayName} · {n.unit === 'time' ? formatTime(n.value) : n.value} ·{' '}
+                  {n.puzzleDate}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
     </section>
   )
 }
