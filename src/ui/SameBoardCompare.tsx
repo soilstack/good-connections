@@ -104,21 +104,13 @@ export function SameBoardCompare({
               />
             )}
             {s.points.map((p) => (
-              <g key={p.n}>
-                <circle cx={x(p.n)} cy={y(p.atMs)} r={s.isYou ? 4 : 3} fill={s.colour}>
-                  <title>
-                    {s.name} — set {p.n} at {formatTime(p.atMs, true)}
-                    {p.falseBefore > 0 ? ` · ${p.falseBefore} wrong` : ''}
-                    {p.dupBefore > 0 ? ` · ${p.dupBefore} repeat` : ''}
-                  </title>
-                </circle>
-                {p.falseBefore > 0 && (
-                  <circle cx={x(p.n) + 5} cy={y(p.atMs) - 5} r={2} className="pc-wrong" />
-                )}
-                {p.dupBefore > 0 && (
-                  <circle cx={x(p.n) + 5} cy={y(p.atMs) + 5} r={2} className="pc-repeat" />
-                )}
-              </g>
+              <circle key={p.n} cx={x(p.n)} cy={y(p.atMs)} r={s.isYou ? 4 : 3} fill={s.colour}>
+                <title>
+                  {s.name} — set {p.n} at {formatTime(p.atMs, true)}
+                  {p.falseBefore > 0 ? ` · ${p.falseBefore} wrong` : ''}
+                  {p.dupBefore > 0 ? ` · ${p.dupBefore} repeat` : ''}
+                </title>
+              </circle>
             ))}
           </g>
         ))}
@@ -134,8 +126,7 @@ export function SameBoardCompare({
         ))}
       </div>
       <p className="muted pace-caption">
-        X = sets found, Y = elapsed time. <span className="pc-wrong-txt">●</span> wrong ·{' '}
-        <span className="pc-repeat-txt">●</span> repeat before that set.
+        X = sets found, Y = elapsed time. Hover a point for wrong / repeat detail.
       </p>
     </section>
   )
