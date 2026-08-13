@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { GameStats } from '../game/telemetry'
 import { getLeaderboard, type LeaderboardRow } from '../lib/leagues'
 import { formatTime } from './format'
+import { SolveTimelineView } from './SolveTimelineView'
 
 interface LeagueResultProps {
   leagueId: string
@@ -34,6 +35,7 @@ export function LeagueResult({
 }: LeagueResultProps) {
   const [rows, setRows] = useState<LeaderboardRow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -76,22 +78,33 @@ export function LeagueResult({
         {!rows && !error && <p className="muted">Loading…</p>}
         {rows && rows.length === 0 && <p className="muted">No entries yet.</p>}
         {rows && rows.length > 0 && (
+          <>
           <ol className="leader-list">
             {rows.map((r, i) => (
-              <li key={r.userId} className={`leader-row${r.userId === userId ? ' is-you' : ''}`}>
-                <span className="leader-rank">{i + 1}</span>
-                <span className="leader-name">
-                  {r.displayName}
-                  {r.userId === userId ? ' (you)' : ''}
-                </span>
-                <span className="leader-result">
-                  {r.stats.completed
-                    ? formatTime(r.stats.totalTimeMs ?? 0)
-                    : `${r.stats.setsFound} found`}
-                </span>
+              <li key={r.userId} className={`leader-item${r.userId === userId ? ' is-you' : ''}`}>
+                <button
+                  type="button"
+                  className="leader-row"
+                  aria-expanded={expanded === r.userId}
+                  onClick={() => setExpanded(expanded === r.userId ? null : r.userId)}
+                >
+                  <span className="leader-rank">{i + 1}</span>
+                  <span className="leader-name">
+                    {r.displayName}
+                    {r.userId === userId ? ' (you)' : ''}
+                  </span>
+                  <span className="leader-result">
+                    {r.stats.completed
+                      ? formatTime(r.stats.totalTimeMs ?? 0)
+                      : `${r.stats.setsFound} found`}
+                  </span>
+                </button>
+                {expanded === r.userId && <SolveTimelineView events={r.events} />}
               </li>
             ))}
           </ol>
+          <p className="muted timeline-hint">Tap a player to see their solve timeline.</p>
+          </>
         )}
       </section>
 

@@ -86,6 +86,8 @@ export interface LeaderboardRow {
   userId: string
   displayName: string
   stats: GameStats
+  /** Raw event log, so a per-player solve timeline can be rendered. */
+  events: TelemetryEvent[]
 }
 
 /** Today's standings for a league: every member's game, ranked by solve time. */
@@ -112,6 +114,7 @@ export async function getLeaderboard(leagueId: string, puzzleDate: string): Prom
     userId: r.user_id,
     displayName: names.get(r.user_id) ?? '—',
     stats: deriveStats({ events: r.events } as GameRecord),
+    events: r.events,
   }))
 
   // Completed games first, fastest total time first; unfinished games after.

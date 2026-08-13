@@ -232,6 +232,76 @@ export function deriveStats(record: GameRecord): GameStats {
   }
 }
 
+/** One found set on the solve timeline, with what happened in the gap before it. */
+export interface TimelineStep {
+  /** Index into the board's solution (set_valid payload). */
+  setIndex: number
+  cards: readonly [number, number, number]
+  /** Cumulative time when this set was found (ms since reveal). */
+  atMs: number
+  /** Time since the previous set (or since reveal, for the first). */
+  sincePrevMs: number
+  /** Invalid attempts in the gap before this set. */
+  falseBefore: number
+  /** Already-found re-selections in the gap before this set. */
+  duplicatesBefore: number
+}
+
+export interface SolveTimeline {
+  steps: TimelineStep[]
+  /** Attempts after the last set was found (e.g. before giving up). */
+  trailingFalse: number
+  trailingDuplicates: number
+  endMs: number | null
+  completed: boolean
+}
+
+/**
+ * Reconstruct the play-by-play from the event log: when each set was found and
+ * how many wrong / already-found attempts happened in each gap. Pure, derive on
+ * read — the raw log stays the single source of truth.
+ */
+export function deriveTimeline(record: GameRecord): SolveTimeline {
+  const steps: TimelineStep[] = []
+  let prevMs = 0
+  let falseSince = 0
+  let dupSince = 0
+  let endMs: number | null = null
+  let completed = false
+
+  for (const ev of record.events) {
+    switch (ev.type) {
+      case 'set_invalid':
+        falseSince++
+        break
+      case 'set_duplicate':
+        dupSince++
+        break
+      case 'set_valid':
+        steps.push({
+          setIndex: ev.payload.setIndex,
+          cards: ev.payload.cards,
+          atMs: ev.t_ms,
+          sincePrevMs: ev.t_ms - prevMs,
+          falseBefore: falseSince,
+          duplicatesBefore: dupSince,
+        })
+        prevMs = ev.t_ms
+        falseSince = 0
+        dupSince = 0
+        break
+      case 'game_end':
+        endMs = ev.t_ms
+        completed = ev.payload.reason === 'completed'
+        break
+      default:
+        break
+    }
+  }
+
+  return { steps, trailingFalse: falseSince, trailingDuplicates: dupSince, endMs, completed }
+}
+
 /**
  * Records matching a context and mode. The obvious place for a silent bug is a
  * query that forgets this filter, so `context` and `mode` are required and there

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   GameRecorder,
   deriveStats,
+  deriveTimeline,
   aggregateSolveTimes,
   completionRate,
   standings,
@@ -170,6 +171,36 @@ describe('deriveStats', () => {
     expect(s.errorRate).toBe(0)
     expect(s.totalTimeMs).toBe(4200)
     expect(s.completed).toBe(false)
+  })
+})
+
+describe('deriveTimeline', () => {
+  it('reconstructs per-set timing with false and already-found gaps', () => {
+    const record: GameRecord = {
+      id: 't',
+      player: 'p',
+      context: 'league',
+      mode: 'A',
+      totalSets: 6,
+      startedAtMs: 0,
+      events: [
+        { t_ms: 500, type: 'set_invalid', payload: { cards: [0, 1, 2] } },
+        { t_ms: 1000, type: 'set_valid', payload: { cards: [3, 4, 5], setIndex: 0 } },
+        { t_ms: 1200, type: 'set_duplicate', payload: { cards: [3, 4, 5], setIndex: 0 } },
+        { t_ms: 1500, type: 'set_invalid', payload: { cards: [6, 7, 8] } },
+        { t_ms: 3000, type: 'set_valid', payload: { cards: [6, 7, 9], setIndex: 1 } },
+        { t_ms: 3500, type: 'set_invalid', payload: { cards: [1, 2, 3] } },
+        { t_ms: 4000, type: 'game_end', payload: { reason: 'abandoned' } },
+      ],
+    }
+    const t = deriveTimeline(record)
+    expect(t.steps).toHaveLength(2)
+    expect(t.steps[0]).toMatchObject({ setIndex: 0, atMs: 1000, sincePrevMs: 1000, falseBefore: 1, duplicatesBefore: 0 })
+    expect(t.steps[1]).toMatchObject({ setIndex: 1, atMs: 3000, sincePrevMs: 2000, falseBefore: 1, duplicatesBefore: 1 })
+    expect(t.trailingFalse).toBe(1)
+    expect(t.trailingDuplicates).toBe(0)
+    expect(t.endMs).toBe(4000)
+    expect(t.completed).toBe(false)
   })
 })
 

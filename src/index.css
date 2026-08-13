@@ -277,7 +277,12 @@ body {
   flex-direction: column;
   gap: 6px;
 }
+.leader-item {
+  display: flex;
+  flex-direction: column;
+}
 .leader-row {
+  width: 100%;
   display: grid;
   grid-template-columns: 28px 1fr auto;
   align-items: center;
@@ -286,10 +291,52 @@ body {
   background: var(--surface);
   border: 1px solid var(--card-border);
   border-radius: 10px;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
-.leader-row.is-you {
+.leader-item.is-you .leader-row {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px rgba(79, 140, 255, 0.35);
+}
+.timeline-hint {
+  font-size: 12px;
+  margin-top: 8px;
+}
+.timeline {
+  list-style: none;
+  margin: 6px 0 2px;
+  padding: 2px 10px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.timeline-step {
+  display: grid;
+  grid-template-columns: 52px 68px 1fr;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+}
+.ts-num {
+  color: var(--muted);
+  font-weight: 700;
+}
+.ts-at {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+.ts-gap {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.ts-misses {
+  color: var(--warn);
+}
+.timeline-empty {
+  padding: 6px;
+  font-size: 13px;
 }
 .leader-rank {
   color: var(--muted);
