@@ -147,6 +147,83 @@ body {
   transform: translateY(1px);
 }
 
+/* ---- auth ---- */
+.auth-screen {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+.auth-card {
+  width: 100%;
+  max-width: 400px;
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: 18px;
+  padding: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.auth-card h1 {
+  margin: 0;
+  font-size: 24px;
+}
+.auth-input {
+  font: inherit;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  background: var(--bg);
+  color: var(--text);
+}
+.auth-input:focus {
+  outline: 2px solid var(--accent);
+  border-color: transparent;
+}
+.auth-error {
+  color: var(--bad);
+  font-size: 13px;
+  margin: 0;
+}
+.auth-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+.auth-actions .btn {
+  flex: 1;
+}
+
+.auth-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+}
+.auth-who {
+  font-size: 14px;
+}
+.leagues-section {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px dashed var(--card-border);
+  border-radius: 14px;
+}
+.section-label {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin: 0 0 8px;
+}
+
 /* ---- menu ---- */
 .menu {
   padding: 32px 16px calc(24px + env(safe-area-inset-bottom));

@@ -5,6 +5,7 @@ import { loadRecords } from './storage'
 import { formatTime } from './format'
 import { Card } from './Card'
 import { CARD_THEMES, type CardTheme } from './cardThemes'
+import type { AuthState } from './useAuth'
 
 interface MenuProps {
   onStart: (mode: Mode) => void
@@ -12,6 +13,45 @@ interface MenuProps {
   refreshKey: number
   cardTheme: CardTheme
   onCardThemeChange: (theme: CardTheme) => void
+  auth: AuthState
+  onSignIn: () => void
+  onSignOut: () => void
+}
+
+function AuthBar({
+  auth,
+  onSignIn,
+  onSignOut,
+}: {
+  auth: AuthState
+  onSignIn: () => void
+  onSignOut: () => void
+}) {
+  if (auth.status === 'signedIn') {
+    return (
+      <div className="auth-bar">
+        <span className="auth-who">
+          Signed in as <strong>{auth.displayName}</strong>
+        </span>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onSignOut}>
+          Sign out
+        </button>
+      </div>
+    )
+  }
+  return (
+    <div className="auth-bar">
+      <span className="auth-who muted">Play daily league puzzles with friends</span>
+      <button
+        type="button"
+        className="btn btn-primary btn-sm"
+        onClick={onSignIn}
+        disabled={auth.status === 'loading'}
+      >
+        Sign in
+      </button>
+    </div>
+  )
 }
 
 const THEME_PREVIEW_CARD = { count: 1, colour: 2, shape: 1, fill: 1 } as const
@@ -87,6 +127,9 @@ export function Menu({
   refreshKey,
   cardTheme,
   onCardThemeChange,
+  auth,
+  onSignIn,
+  onSignOut,
 }: MenuProps) {
   const records = useMemo(() => loadRecords(), [refreshKey])
   const aggA = aggregateSolveTimes(records, 'practice', 'A')
@@ -98,6 +141,17 @@ export function Menu({
         <h1>Set</h1>
         <p className="muted">Practice — find every set on the board.</p>
       </header>
+
+      <AuthBar auth={auth} onSignIn={onSignIn} onSignOut={onSignOut} />
+
+      {auth.status === 'signedIn' && (
+        <section className="leagues-section">
+          <h2 className="section-label">Leagues</h2>
+          <p className="muted">
+            Daily league puzzles are being wired up next — you’re signed in and ready to join one.
+          </p>
+        </section>
+      )}
 
       <ThemePicker value={cardTheme} onChange={onCardThemeChange} />
 
