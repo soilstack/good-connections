@@ -31,6 +31,8 @@ export type TelemetryEvent =
   | { t_ms: number; type: 'card_deselect'; payload: { card: CardIndex } }
   | { t_ms: number; type: 'set_valid'; payload: { cards: [CardIndex, CardIndex, CardIndex]; setIndex: number } }
   | { t_ms: number; type: 'set_invalid'; payload: { cards: [CardIndex, CardIndex, CardIndex] } }
+  // A valid set the player had already found — a wasted re-selection, not an error.
+  | { t_ms: number; type: 'set_duplicate'; payload: { cards: [CardIndex, CardIndex, CardIndex]; setIndex: number } }
   | { t_ms: number; type: 'deal'; payload: { added: number } }
   | { t_ms: number; type: 'abandon_prompt'; payload: Record<string, never> }
   | { t_ms: number; type: 'abandon_cancel'; payload: Record<string, never> }
@@ -119,6 +121,11 @@ export class GameRecorder {
     this.events.push({ t_ms: this.t(), type: 'set_invalid', payload: { cards } })
   }
 
+  /** A valid set the player had already found (re-selected). */
+  setDuplicate(cards: [CardIndex, CardIndex, CardIndex], setIndex: number): void {
+    this.events.push({ t_ms: this.t(), type: 'set_duplicate', payload: { cards, setIndex } })
+  }
+
   deal(added: number): void {
     this.events.push({ t_ms: this.t(), type: 'deal', payload: { added } })
   }
@@ -163,6 +170,8 @@ export interface GameStats {
   errorCount: number
   /** Invalid attempts as a fraction of all attempts; 0 when there were none. */
   errorRate: number
+  /** Re-selections of an already-found set (wasted, but not errors). */
+  duplicateCount: number
   completed: boolean
   abandoned: boolean
   /** How many times the give-up prompt was opened (near-misses included). */
@@ -173,6 +182,7 @@ export interface GameStats {
 export function deriveStats(record: GameRecord): GameStats {
   const validTimes: number[] = []
   let errorCount = 0
+  let duplicateCount = 0
   let abandonPrompts = 0
   let totalTimeMs: number | null = null
   let completed = false
@@ -185,6 +195,9 @@ export function deriveStats(record: GameRecord): GameStats {
         break
       case 'set_invalid':
         errorCount++
+        break
+      case 'set_duplicate':
+        duplicateCount++
         break
       case 'abandon_prompt':
         abandonPrompts++
@@ -212,6 +225,7 @@ export function deriveStats(record: GameRecord): GameStats {
     setsFound: validTimes.length,
     errorCount,
     errorRate: attempts > 0 ? errorCount / attempts : 0,
+    duplicateCount,
     completed,
     abandoned,
     abandonPrompts,

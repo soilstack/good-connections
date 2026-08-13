@@ -109,6 +109,29 @@ describe('GameRecorder', () => {
 })
 
 describe('deriveStats', () => {
+  it('counts already-found re-selections as duplicates, separate from errors', () => {
+    const record: GameRecord = {
+      id: 'dup',
+      player: 'p',
+      context: 'league',
+      mode: 'A',
+      totalSets: 6,
+      startedAtMs: 0,
+      events: [
+        { t_ms: 100, type: 'set_valid', payload: { cards: [0, 1, 2], setIndex: 0 } },
+        { t_ms: 200, type: 'set_duplicate', payload: { cards: [0, 1, 2], setIndex: 0 } },
+        { t_ms: 300, type: 'set_invalid', payload: { cards: [3, 4, 5] } },
+        { t_ms: 400, type: 'game_end', payload: { reason: 'abandoned' } },
+      ],
+    }
+    const s = deriveStats(record)
+    expect(s.duplicateCount).toBe(1)
+    expect(s.errorCount).toBe(1)
+    expect(s.setsFound).toBe(1)
+    // Duplicates are not attempts: error rate is 1 invalid of (1 valid + 1 invalid).
+    expect(s.errorRate).toBeCloseTo(1 / 2)
+  })
+
   it('derives time-to-first-set, intervals, totals, and error rate from the log', () => {
     const record = completedGame({
       id: 'g',

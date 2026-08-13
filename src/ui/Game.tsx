@@ -62,6 +62,10 @@ export function Game({ board, session, onExit, onPlayAgain }: GameProps) {
   }, [game.status, game.record, session])
 
   const showDenominator = board.mode === 'A'
+  const objective =
+    board.mode === 'A'
+      ? `Find all ${game.totalSets} sets`
+      : 'Find every set — the count is hidden'
   const foundSets = [...game.found].map((idx) => board.sets[idx]!)
 
   if (game.status === 'ended' && game.stats && game.endReason) {
@@ -105,9 +109,10 @@ export function Game({ board, session, onExit, onPlayAgain }: GameProps) {
     <div className="game">
       <header className="game-head">
         <div className="head-left">
-          <span className="mode-badge">
-            {session.kind === 'league' ? session.leagueName : `Mode ${board.mode}`}
-          </span>
+          <div className="head-tags">
+            <span className="mode-badge">Mode {board.mode}</span>
+            {session.kind === 'league' && <span className="league-tag">{session.leagueName}</span>}
+          </div>
           <span className="count">
             {game.foundCount}
             {showDenominator && <span className="count-denom"> / {game.totalSets}</span>}
@@ -123,6 +128,8 @@ export function Game({ board, session, onExit, onPlayAgain }: GameProps) {
           </button>
         </div>
       </header>
+
+      <p className="objective">{objective}</p>
 
       <div className="feedback-slot" aria-live="polite">
         {game.feedback && (

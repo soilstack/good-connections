@@ -134,6 +134,7 @@ export function useSetGame({ board, player, context }: UseSetGameOptions): SetGa
       }
       const setIndex = findSetIndex(board.sets, sorted)
       if (found.has(setIndex)) {
+        recorder.setDuplicate(sorted, setIndex)
         flash('duplicate', sorted)
         return
       }
