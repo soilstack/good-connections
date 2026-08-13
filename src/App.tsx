@@ -2,6 +2,12 @@ import { useState, useCallback } from 'react'
 import { generateBoard, type Board, type Mode } from './game/board'
 import { Menu } from './ui/Menu'
 import { Game } from './ui/Game'
+import { CardThemeProvider } from './ui/CardThemeContext'
+import {
+  loadCardTheme,
+  saveCardTheme,
+  type CardTheme,
+} from './ui/cardThemes'
 
 /**
  * Slice-1 practice app: a menu to pick a mode, then a single fixed-board game
@@ -18,6 +24,7 @@ interface Playing {
 export function App() {
   const [playing, setPlaying] = useState<Playing | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [cardTheme, setCardTheme] = useState<CardTheme>(loadCardTheme)
 
   const start = useCallback((mode: Mode) => {
     const board = generateBoard(mode, Math.random)
@@ -38,7 +45,21 @@ export function App() {
     setRefreshKey((k) => k + 1)
   }, [])
 
-  if (!playing) return <Menu onStart={start} refreshKey={refreshKey} />
+  const changeCardTheme = useCallback((theme: CardTheme) => {
+    setCardTheme(theme)
+    saveCardTheme(theme)
+  }, [])
 
-  return <Game key={playing.gameId} board={playing.board} onPlayAgain={playAgain} onMenu={toMenu} />
+  const screen = !playing ? (
+    <Menu
+      onStart={start}
+      refreshKey={refreshKey}
+      cardTheme={cardTheme}
+      onCardThemeChange={changeCardTheme}
+    />
+  ) : (
+    <Game key={playing.gameId} board={playing.board} onPlayAgain={playAgain} onMenu={toMenu} />
+  )
+
+  return <CardThemeProvider theme={cardTheme}>{screen}</CardThemeProvider>
 }
