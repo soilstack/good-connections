@@ -85,6 +85,7 @@ export function SameBoardCompare({
   const xMin = Math.min(1, ...doneXs)
   const xMax = Math.max(maxN, ...doneXs)
   const x = (v: number) => (xMax > xMin ? M.l + ((v - xMin) / (xMax - xMin)) * PLOT_W : M.l + PLOT_W / 2)
+  const doneTickXs = [...new Set(doneXs)].sort((a, b) => a - b)
   const y = (t: number) => M.t + (1 - t / maxT) * PLOT_H
 
   const yTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => ({ f, value: maxT * f }))
@@ -106,6 +107,11 @@ export function SameBoardCompare({
         {xTicks.map((n) => (
           <text key={n} x={x(n)} y={H - 8} className="pc-xlabel">
             {n}
+          </text>
+        ))}
+        {doneTickXs.map((v) => (
+          <text key={`dt${v}`} x={x(v)} y={H - 8} className="pc-xlabel pc-donelabel">
+            {v - 0.5 >= maxN ? 'done' : 'false done'}
           </text>
         ))}
 
@@ -177,7 +183,7 @@ export function SameBoardCompare({
       </div>
       <p className="muted pace-caption">
         X = sets found, Y = elapsed time (incl. penalties).
-        {anyDones && ' ▢ finished · ◯ premature “done”.'} Hover a point for detail.
+        {anyDones && ' ▢ done · ◯ false done.'} Hover a point for detail.
       </p>
     </section>
   )

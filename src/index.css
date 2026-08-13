@@ -431,6 +431,10 @@ body {
   font-size: 10px;
   text-anchor: middle;
 }
+.pc-donelabel {
+  font-size: 9px;
+  font-style: italic;
+}
 .pc-wrong {
   fill: var(--bad);
 }
