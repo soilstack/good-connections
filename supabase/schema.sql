@@ -43,18 +43,16 @@ create table if not exists memberships (
   primary key (league_id, user_id)
 );
 
--- daily_boards: one board per league per local date. The SOLUTION column has
--- NO client select policy, so RLS makes it unreadable from the app — only the
--- Edge Function (service role) touches it. Clients receive `cards` via that
--- function, never this table directly.
-create table if not exists daily_boards (
-  id uuid primary key default gen_random_uuid(),
+-- daily_seeds: one random seed per league per local date. The seed is issued
+-- (via today_puzzle() below) only for the CURRENT local date, so everyone gets
+-- the same board while future puzzles cannot be pre-computed. The board itself
+-- is generated client-side from this seed by the pure generateBoard().
+create table if not exists daily_seeds (
   league_id uuid not null references leagues (id) on delete cascade,
   puzzle_date date not null,                     -- league-local date
-  cards jsonb not null,                          -- 12 cards (safe to send)
-  solution jsonb not null,                       -- set triples (server-only)
+  seed bigint not null,
   created_at timestamptz not null default now(),
-  unique (league_id, puzzle_date)
+  primary key (league_id, puzzle_date)
 );
 
 -- game_records: the append-only telemetry event log, posted to the server.
@@ -66,7 +64,7 @@ create table if not exists game_records (
   user_id uuid not null references auth.users (id) on delete cascade,
   context text not null check (context in ('league', 'practice')),
   league_id uuid references leagues (id) on delete set null,
-  daily_board_id uuid references daily_boards (id) on delete set null,
+  puzzle_date date,                              -- league-local date, for league games
   mode text not null check (mode in ('A', 'B')),
   total_sets int not null,
   started_at timestamptz not null,
@@ -81,7 +79,7 @@ create table if not exists game_records (
 alter table profiles enable row level security;
 alter table leagues enable row level security;
 alter table memberships enable row level security;
-alter table daily_boards enable row level security;   -- no SELECT policy = unreadable
+alter table daily_seeds enable row level security;    -- no SELECT policy; reached via today_puzzle()
 alter table game_records enable row level security;
 
 -- profiles ------------------------------------------------------------------
@@ -138,5 +136,40 @@ begin
     values (target, auth.uid())
     on conflict do nothing;
   return target;
+end;
+$$;
+
+-- ===========================================================================
+-- today_puzzle: issue the current local-date seed for a league (members only),
+-- creating it on first request. Returns { seed, puzzle_date, mode }. Only ever
+-- issues today's seed, so future puzzles cannot be pre-computed.
+-- ===========================================================================
+create or replace function today_puzzle (p_league uuid)
+  returns json
+  language plpgsql
+  security definer
+  set search_path = public
+as $$
+declare
+  tz text;
+  m text;
+  d date;
+  s bigint;
+begin
+  select timezone, mode into tz, m from leagues where id = p_league;
+  if tz is null then
+    raise exception 'no such league';
+  end if;
+  if not exists (
+    select 1 from memberships where league_id = p_league and user_id = auth.uid()
+  ) then
+    raise exception 'not a member of this league';
+  end if;
+  d := (now() at time zone tz)::date;
+  insert into daily_seeds (league_id, puzzle_date, seed)
+    values (p_league, d, (random() * 2000000000)::bigint)
+    on conflict (league_id, puzzle_date) do nothing;
+  select seed into s from daily_seeds where league_id = p_league and puzzle_date = d;
+  return json_build_object('seed', s, 'puzzle_date', d, 'mode', m);
 end;
 $$;
