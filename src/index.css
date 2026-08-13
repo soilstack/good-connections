@@ -437,6 +437,11 @@ body {
 .pc-repeat {
   fill: var(--warn);
 }
+.pc-premdone {
+  fill: none;
+  stroke: var(--bad);
+  stroke-width: 1.5;
+}
 .pace-legend {
   display: flex;
   flex-wrap: wrap;
