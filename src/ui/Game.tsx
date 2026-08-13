@@ -1,6 +1,5 @@
-import { useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Board } from '../game/board'
-import type { GameRecord } from '../game/telemetry'
 import { useSetGame } from './useSetGame'
 import { Board as BoardGrid } from './Board'
 import { AbandonDialog } from './AbandonDialog'
@@ -31,36 +30,52 @@ interface GameProps {
 }
 
 export function Game({ board, session, onExit, onPlayAgain }: GameProps) {
-  const persist = useCallback(
-    (record: GameRecord) => {
-      if (session.kind === 'league') {
-        void submitLeagueRecord({
-          leagueId: session.leagueId,
-          puzzleDate: session.puzzleDate,
-          mode: record.mode,
-          totalSets: record.totalSets,
-          startedAtMs: record.startedAtMs,
-          events: record.events,
-        })
-      } else {
-        saveRecord(record)
-      }
-    },
-    [session],
-  )
-
   const game = useSetGame({
     board,
     player: session.kind === 'league' ? session.userId : 'local',
     context: session.kind === 'league' ? 'league' : 'practice',
-    onPersist: persist,
   })
+
+  const persistedRef = useRef(false)
+  const [leagueSubmit, setLeagueSubmit] = useState<'pending' | 'done' | 'error'>('pending')
+
+  // Persist once, when the game ends. Practice -> localStorage. League -> post
+  // to the server AND wait for it, so the leaderboard we then load already
+  // includes the player's own row.
+  useEffect(() => {
+    if (game.status !== 'ended' || !game.record || persistedRef.current) return
+    persistedRef.current = true
+    if (session.kind === 'league') {
+      submitLeagueRecord({
+        leagueId: session.leagueId,
+        puzzleDate: session.puzzleDate,
+        mode: game.record.mode,
+        totalSets: game.record.totalSets,
+        startedAtMs: game.record.startedAtMs,
+        events: game.record.events,
+      })
+        .then(() => setLeagueSubmit('done'))
+        .catch(() => setLeagueSubmit('error'))
+    } else {
+      saveRecord(game.record)
+    }
+  }, [game.status, game.record, session])
 
   const showDenominator = board.mode === 'A'
   const foundSets = [...game.found].map((idx) => board.sets[idx]!)
 
   if (game.status === 'ended' && game.stats && game.endReason) {
     if (session.kind === 'league') {
+      if (leagueSubmit === 'pending') {
+        return (
+          <div className="auth-screen">
+            <div className="auth-card">
+              <h1>{game.endReason === 'completed' ? 'Solved!' : 'Gave up'}</h1>
+              <p className="muted">Saving your result…</p>
+            </div>
+          </div>
+        )
+      }
       // No missed-set reveal while the league's daily slot is still open.
       return (
         <LeagueResult

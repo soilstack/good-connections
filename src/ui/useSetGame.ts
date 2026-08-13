@@ -61,11 +61,9 @@ export interface UseSetGameOptions {
   board: Board
   player: string
   context: GameContext
-  /** Called once with the final record when the game ends (save/submit). */
-  onPersist?: (record: GameRecord) => void
 }
 
-export function useSetGame({ board, player, context, onPersist }: UseSetGameOptions): SetGameState {
+export function useSetGame({ board, player, context }: UseSetGameOptions): SetGameState {
   const recorderRef = useRef<GameRecorder | null>(null)
   if (recorderRef.current === null) {
     recorderRef.current = new GameRecorder({
@@ -89,7 +87,6 @@ export function useSetGame({ board, player, context, onPersist }: UseSetGameOpti
   const [record, setRecord] = useState<GameRecord | null>(null)
 
   const feedbackTimer = useRef<number | null>(null)
-  const savedRef = useRef(false)
 
   // Live clock. Keeps running while playing — including while the abandon
   // prompt is open, so it is never a free thinking break.
@@ -121,12 +118,8 @@ export function useSetGame({ board, player, context, onPersist }: UseSetGameOpti
       setRecord(rec)
       const last = rec.events[rec.events.length - 1]
       setElapsedMs(last ? last.t_ms : 0)
-      if (!savedRef.current) {
-        savedRef.current = true
-        onPersist?.(rec)
-      }
     },
-    [recorder, onPersist],
+    [recorder],
   )
 
   const evaluate = useCallback(
