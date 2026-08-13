@@ -79,7 +79,12 @@ export function SameBoardCompare({
     ...series.flatMap((s) => [...s.setPoints.map((p) => p.atMs), ...s.dones.map((d) => d.atMs)]),
     1,
   )
-  const x = (n: number) => (maxN > 1 ? M.l + ((n - 1) / (maxN - 1)) * PLOT_W : M.l + PLOT_W / 2)
+  // Sets sit on integer x (1..n); each "done" gets its own slot half a step
+  // after the set count when it happened, so dones never stack on a set.
+  const doneXs = series.flatMap((s) => s.dones.map((d) => d.setsAt + 0.5))
+  const xMin = Math.min(1, ...doneXs)
+  const xMax = Math.max(maxN, ...doneXs)
+  const x = (v: number) => (xMax > xMin ? M.l + ((v - xMin) / (xMax - xMin)) * PLOT_W : M.l + PLOT_W / 2)
   const y = (t: number) => M.t + (1 - t / maxT) * PLOT_H
 
   const yTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => ({ f, value: maxT * f }))
@@ -107,7 +112,7 @@ export function SameBoardCompare({
         {series.map((s) => {
           const finalDone = s.dones.find((d) => d.complete)
           const linePts = s.setPoints.map((p) => `${x(p.n)},${y(p.atMs)}`)
-          if (finalDone) linePts.push(`${x(finalDone.setsAt)},${y(finalDone.atMs)}`)
+          if (finalDone) linePts.push(`${x(finalDone.setsAt + 0.5)},${y(finalDone.atMs)}`)
           return (
             <g key={s.userId}>
               {linePts.length > 1 && (
@@ -132,7 +137,7 @@ export function SameBoardCompare({
                 d.complete ? (
                   <rect
                     key={`d${di}`}
-                    x={x(d.setsAt) - 4}
+                    x={x(d.setsAt + 0.5) - 4}
                     y={y(d.atMs) - 4}
                     width={8}
                     height={8}
@@ -145,7 +150,7 @@ export function SameBoardCompare({
                 ) : (
                   <circle
                     key={`d${di}`}
-                    cx={x(d.setsAt)}
+                    cx={x(d.setsAt + 0.5)}
                     cy={y(d.atMs)}
                     r={4.5}
                     className="pc-premdone"
