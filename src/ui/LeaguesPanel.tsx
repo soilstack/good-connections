@@ -32,7 +32,12 @@ export function LeaguesPanel({ onSelectLeague }: LeaguesPanelProps) {
       setCode('')
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      const msg = err instanceof Error ? err.message : String(err)
+      setError(
+        /no league with that code/i.test(msg)
+          ? 'No league found for that code. Check it and try again.'
+          : msg,
+      )
     } finally {
       setJoining(false)
     }

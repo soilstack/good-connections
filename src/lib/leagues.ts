@@ -22,7 +22,7 @@ export async function getMyLeagues(): Promise<League[]> {
   const { data, error } = await supabase
     .from('memberships')
     .select('leagues(id, name, timezone, mode, join_code)')
-  if (error) throw error
+  if (error) throw new Error(error.message)
   const rows = (data ?? []) as unknown as { leagues: League | League[] | null }[]
   const leagues: League[] = []
   for (const row of rows) {
@@ -36,7 +36,7 @@ export async function getMyLeagues(): Promise<League[]> {
 /** Join a league by its code; returns the league id. */
 export async function joinLeague(code: string): Promise<string> {
   const { data, error } = await supabase.rpc('join_league', { code: code.trim() })
-  if (error) throw error
+  if (error) throw new Error(error.message)
   return data as string
 }
 
@@ -50,7 +50,7 @@ export interface TodayPuzzle {
 /** Fetch today's seed for a league and build its board with the pure generator. */
 export async function getTodayPuzzle(leagueId: string): Promise<TodayPuzzle> {
   const { data, error } = await supabase.rpc('today_puzzle', { p_league: leagueId })
-  if (error) throw error
+  if (error) throw new Error(error.message)
   const row = data as { seed: number; puzzle_date: string; mode: Mode }
   const seed = Number(row.seed)
   const board = generateBoard(row.mode, mulberry32(seed))
@@ -79,7 +79,7 @@ export async function submitLeagueRecord(args: {
     started_at: new Date(args.startedAtMs).toISOString(),
     events: args.events,
   })
-  if (error) throw error
+  if (error) throw new Error(error.message)
 }
 
 export interface LeaderboardRow {
@@ -96,7 +96,7 @@ export async function getLeaderboard(leagueId: string, puzzleDate: string): Prom
     .eq('context', 'league')
     .eq('league_id', leagueId)
     .eq('puzzle_date', puzzleDate)
-  if (error) throw error
+  if (error) throw new Error(error.message)
   const records = (recs ?? []) as { user_id: string; events: TelemetryEvent[] }[]
 
   const userIds = [...new Set(records.map((r) => r.user_id))]
@@ -137,6 +137,6 @@ export async function hasPlayedToday(leagueId: string, puzzleDate: string): Prom
     .eq('puzzle_date', puzzleDate)
     .eq('user_id', userId)
     .limit(1)
-  if (error) throw error
+  if (error) throw new Error(error.message)
   return (data ?? []).length > 0
 }
