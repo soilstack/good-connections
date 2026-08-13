@@ -5,6 +5,7 @@ import { getLeaderboard, type LeaderboardRow } from '../lib/leagues'
 import { formatTime } from './format'
 import { SolveTimelineView } from './SolveTimelineView'
 import { LeagueStatsView } from './LeagueStatsView'
+import { SameBoardCompare } from './SameBoardCompare'
 
 interface LeagueResultProps {
   leagueId: string
@@ -111,6 +112,8 @@ export function LeagueResult({
           </>
         )}
       </section>
+
+      {rows && <SameBoardCompare rows={rows} currentUserId={userId} />}
 
       <LeagueStatsView leagueId={leagueId} mode={mode} currentUserId={userId} />
 
