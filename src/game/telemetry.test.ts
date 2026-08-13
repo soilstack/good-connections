@@ -174,6 +174,32 @@ describe('deriveStats', () => {
   })
 })
 
+describe('Mode C penalties', () => {
+  it('folds penalties into event times and counts premature dones', () => {
+    const rec = new GameRecorder({
+      id: 'c',
+      player: 'p',
+      context: 'practice',
+      mode: 'C',
+      totalSets: 2,
+      now: fakeClock([1000, 1200, 1200, 3000]),
+    })
+    rec.doneAttempt(false) // t = 1200-1000 + 0 = 200
+    rec.addPenalty(5000)
+    rec.setValid([0, 1, 2], 0) // t = 1200-1000 + 5000 = 5200
+    rec.doneAttempt(true) // t = 3000-1000 + 5000 = 7000
+    const record = rec.record()
+    expect(record.events.map((e) => [e.type, e.t_ms])).toEqual([
+      ['done_attempt', 200],
+      ['set_valid', 5200],
+      ['done_attempt', 7000],
+    ])
+    const s = deriveStats(record)
+    expect(s.falseDones).toBe(1)
+    expect(s.setsFound).toBe(1)
+  })
+})
+
 describe('deriveTimeline', () => {
   it('reconstructs per-set timing with false and already-found gaps', () => {
     const record: GameRecord = {

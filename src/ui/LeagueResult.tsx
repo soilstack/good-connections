@@ -74,6 +74,9 @@ export function LeagueResult({
           />
           <Stat label="Sets found" value={`${stats.setsFound}`} />
           <Stat label="Mistakes" value={`${stats.errorCount}`} />
+          {stats.penaltyMs > 0 && (
+            <Stat label="Penalties" value={`+${formatTime(stats.penaltyMs)}`} />
+          )}
         </div>
       )}
 

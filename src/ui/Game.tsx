@@ -65,7 +65,9 @@ export function Game({ board, session, onExit, onPlayAgain }: GameProps) {
   const objective =
     board.mode === 'A'
       ? `Find all ${game.totalSets} sets`
-      : 'Find every set — the count is hidden'
+      : board.mode === 'C'
+        ? 'Find every set, then hit Done — a wrong Done costs a growing penalty'
+        : 'Find every set — the count is hidden'
   const foundSets = [...game.found].map((idx) => board.sets[idx]!)
 
   if (game.status === 'ended' && game.stats && game.endReason) {
@@ -124,6 +126,11 @@ export function Game({ board, session, onExit, onPlayAgain }: GameProps) {
           <span className="timer" aria-label="elapsed time">
             {formatTime(game.elapsedMs)}
           </span>
+          {board.mode === 'C' && (
+            <button type="button" className="btn btn-primary btn-sm" onClick={game.pressDone}>
+              Done
+            </button>
+          )}
           <button type="button" className="btn btn-ghost btn-sm" onClick={game.openAbandon}>
             Give up
           </button>
@@ -133,10 +140,16 @@ export function Game({ board, session, onExit, onPlayAgain }: GameProps) {
       <p className="objective">{objective}</p>
 
       <div className="feedback-slot" aria-live="polite">
-        {game.feedback && (
-          <div className={`feedback-banner fb-${game.feedback.kind}`} role="status">
-            {FEEDBACK_TEXT[game.feedback.kind]}
+        {game.notice ? (
+          <div className="feedback-banner fb-invalid" role="status">
+            {game.notice}
           </div>
+        ) : (
+          game.feedback && (
+            <div className={`feedback-banner fb-${game.feedback.kind}`} role="status">
+              {FEEDBACK_TEXT[game.feedback.kind]}
+            </div>
+          )
         )}
       </div>
 

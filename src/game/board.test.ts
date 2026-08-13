@@ -139,6 +139,17 @@ describe('generateModeA (exactly six sets)', () => {
   })
 })
 
+describe('generateModeC (hardcore)', () => {
+  it('produces a Mode C board with at least one set across 200 seeds', () => {
+    for (let seed = 0; seed < 200; seed++) {
+      const board = generateBoard('C', mulberry32(seed))
+      expect(board.mode).toBe('C')
+      expect(board.sets.length).toBeGreaterThanOrEqual(1)
+      expect(board.sets).toEqual(enumerateSets(board.cards))
+    }
+  })
+})
+
 describe('generateBoard dispatch', () => {
   it('delegates to the mode-specific generator', () => {
     expect(generateBoard('A', mulberry32(3)).sets).toHaveLength(MODE_A_SET_COUNT)

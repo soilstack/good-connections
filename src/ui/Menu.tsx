@@ -138,6 +138,7 @@ export function Menu({
   const records = useMemo(() => loadRecords(), [refreshKey])
   const aggA = aggregateSolveTimes(records, 'practice', 'A')
   const aggB = aggregateSolveTimes(records, 'practice', 'B')
+  const aggC = aggregateSolveTimes(records, 'practice', 'C')
 
   return (
     <div className="menu">
@@ -169,6 +170,15 @@ export function Menu({
           played={aggB.gamesCompleted}
           meanMs={aggB.meanTotalTimeMs}
           completion={completionRate(records, 'practice', 'B')}
+          onStart={onStart}
+        />
+        <ModeCard
+          mode="C"
+          title="Mode C · Hardcore"
+          blurb="Unknown count, no auto-finish. Hit Done when you think you’re done — a wrong Done adds a growing time penalty."
+          played={aggC.gamesCompleted}
+          meanMs={aggC.meanTotalTimeMs}
+          completion={completionRate(records, 'practice', 'C')}
           onStart={onStart}
         />
       </div>

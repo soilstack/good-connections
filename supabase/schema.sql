@@ -29,7 +29,7 @@ create table if not exists leagues (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   timezone text not null,                       -- IANA tz, e.g. 'Asia/Singapore'
-  mode text not null check (mode in ('A', 'B')),
+  mode text not null check (mode in ('A', 'B', 'C')),
   join_code text not null unique,               -- players use this to join
   created_by uuid references auth.users (id),
   created_at timestamptz not null default now()
@@ -65,7 +65,7 @@ create table if not exists game_records (
   context text not null check (context in ('league', 'practice')),
   league_id uuid references leagues (id) on delete set null,
   puzzle_date date,                              -- league-local date, for league games
-  mode text not null check (mode in ('A', 'B')),
+  mode text not null check (mode in ('A', 'B', 'C')),
   total_sets int not null,
   started_at timestamptz not null,
   submitted_at timestamptz not null default now(),

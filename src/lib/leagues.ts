@@ -275,6 +275,8 @@ export async function getLeagueStats(leagueId: string, mode: Mode): Promise<Leag
     notable('Longest stall between sets', 'time', (g) =>
       g.stats.setIntervalsMs.length > 0 ? Math.max(...g.stats.setIntervalsMs) : 0,
     ),
+    notable('Most premature “done”s', 'count', (g) => g.stats.falseDones),
+    notable('Most time lost to penalties', 'time', (g) => g.stats.penaltyMs),
   ].filter((n): n is NotableRecord => n !== null)
 
   return { mode, topSolves, fastestBySetCount, members, notables }

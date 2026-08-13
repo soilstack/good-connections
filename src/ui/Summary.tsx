@@ -53,6 +53,7 @@ export function Summary({ board, stats, endReason, missedSets, onPlayAgain, onMe
         <Stat label="Avg between sets" value={meanInterval(stats)} />
         <Stat label="Mistakes" value={String(stats.errorCount)} />
         <Stat label="Error rate" value={attempts === 0 ? '—' : `${Math.round(stats.errorRate * 100)}%`} />
+        {stats.penaltyMs > 0 && <Stat label="Penalties" value={`+${formatTime(stats.penaltyMs)}`} />}
         <Stat label="Completed" value={stats.completed ? 'Yes' : 'No'} />
       </div>
 

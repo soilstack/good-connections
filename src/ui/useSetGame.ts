@@ -4,6 +4,7 @@ import { isSet, type Triple } from '../game/set'
 import {
   GameRecorder,
   deriveStats,
+  MODE_C_BASE_PENALTY_MS,
   type GameContext,
   type GameRecord,
   type GameStats,
@@ -38,7 +39,11 @@ export interface SetGameState {
   stats: GameStats | null
   /** Solution sets not found, revealed on end (practice reveals immediately). */
   missedSets: Triple[]
+  /** Transient message, e.g. Mode C's "didn't find all" penalty notice. */
+  notice: string | null
   toggleCard: (i: number) => void
+  /** Mode C: declare "done". Completes if all found, else penalises. */
+  pressDone: () => void
   openAbandon: () => void
   cancelAbandon: () => void
   confirmAbandon: () => void
@@ -85,23 +90,31 @@ export function useSetGame({ board, player, context }: UseSetGameOptions): SetGa
   const [abandonOpen, setAbandonOpen] = useState(false)
   const [elapsedMs, setElapsedMs] = useState(0)
   const [record, setRecord] = useState<GameRecord | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
 
   const feedbackTimer = useRef<number | null>(null)
+  const noticeTimer = useRef<number | null>(null)
+  const penaltyRef = useRef(0) // accumulated Mode C penalty, mirrors the recorder
+  const failedDonesRef = useRef(0)
 
-  // Live clock. Keeps running while playing — including while the abandon
-  // prompt is open, so it is never a free thinking break.
+  // Live clock (includes any Mode C penalty). Keeps running while playing —
+  // including while the abandon prompt is open, so it is never a free break.
   useEffect(() => {
     if (status !== 'playing') return
     const start = recorder.startTimeMs()
-    const tick = () => setElapsedMs(Date.now() - start)
+    const tick = () => setElapsedMs(Date.now() - start + penaltyRef.current)
     tick()
     const id = window.setInterval(tick, 200)
     return () => window.clearInterval(id)
   }, [status, recorder])
 
-  useEffect(() => () => {
-    if (feedbackTimer.current !== null) window.clearTimeout(feedbackTimer.current)
-  }, [])
+  useEffect(
+    () => () => {
+      if (feedbackTimer.current !== null) window.clearTimeout(feedbackTimer.current)
+      if (noticeTimer.current !== null) window.clearTimeout(noticeTimer.current)
+    },
+    [],
+  )
 
   const flash = useCallback((kind: FeedbackKind, cards: readonly number[]) => {
     if (feedbackTimer.current !== null) window.clearTimeout(feedbackTimer.current)
@@ -143,7 +156,9 @@ export function useSetGame({ board, player, context }: UseSetGameOptions): SetGa
       next.add(setIndex)
       setFound(next)
       flash('valid', sorted)
-      if (next.size === board.sets.length) finish('completed')
+      // Modes A/B end the instant the last set is found. Mode C never
+      // auto-ends — the player must declare "done".
+      if (board.mode !== 'C' && next.size === board.sets.length) finish('completed')
     },
     [board, found, recorder, flash, finish],
   )
@@ -185,6 +200,27 @@ export function useSetGame({ board, player, context }: UseSetGameOptions): SetGa
     finish('abandoned')
   }, [finish])
 
+  // Mode C: declare "done". Completes if every set is found; otherwise records a
+  // premature done, adds an escalating penalty (5s, then doubling), and tells
+  // the player only that they missed some — never how many.
+  const pressDone = useCallback(() => {
+    if (status !== 'playing' || abandonOpen) return
+    if (found.size === board.sets.length) {
+      recorder.doneAttempt(true)
+      finish('completed')
+      return
+    }
+    recorder.doneAttempt(false)
+    const penalty = MODE_C_BASE_PENALTY_MS * 2 ** failedDonesRef.current
+    recorder.addPenalty(penalty)
+    failedDonesRef.current += 1
+    penaltyRef.current += penalty
+    setElapsedMs(Date.now() - recorder.startTimeMs() + penaltyRef.current)
+    if (noticeTimer.current !== null) window.clearTimeout(noticeTimer.current)
+    setNotice(`You didn’t find all — +${penalty / 1000}s`)
+    noticeTimer.current = window.setTimeout(() => setNotice(null), 1800)
+  }, [status, abandonOpen, found, board, recorder, finish])
+
   const missedSets =
     status === 'ended' ? board.sets.filter((_, idx) => !found.has(idx)) : []
 
@@ -201,7 +237,9 @@ export function useSetGame({ board, player, context }: UseSetGameOptions): SetGa
     record,
     stats: record ? deriveStats(record) : null,
     missedSets,
+    notice,
     toggleCard,
+    pressDone,
     openAbandon,
     cancelAbandon,
     confirmAbandon,

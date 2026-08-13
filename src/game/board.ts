@@ -15,8 +15,14 @@ import { enumerateSets, countSets, type Triple } from './set'
 /** A pseudo-random source returning a float in [0, 1), like Math.random. */
 export type RNG = () => number
 
-/** The two game modes. A league (or a practice game) is fixed to one. */
-export type Mode = 'A' | 'B'
+/**
+ * The game modes. A league (or practice game) is fixed to one.
+ * - A: exactly six sets, count shown.
+ * - B: unknown count, ends automatically when the last set is found.
+ * - C: unknown count like B, but no auto-end — the player declares "done"
+ *   (penalties for declaring early). Generated identically to B.
+ */
+export type Mode = 'A' | 'B' | 'C'
 
 /** Cards dealt per board. Fixed by the puzzle format. */
 export const BOARD_SIZE = 12
@@ -115,7 +121,24 @@ export function generateModeA(rng: RNG): Board {
   throw new Error(`generateModeA: no ${MODE_A_SET_COUNT}-set board within ${MAX_ATTEMPTS} attempts`)
 }
 
+/**
+ * Mode C — hardcore. Same board as Mode B (unknown count, at least one set);
+ * the difference is entirely in play (no auto-end, declare "done" with
+ * penalties), not in generation.
+ */
+export function generateModeC(rng: RNG): Board {
+  for (let attempts = 1; attempts <= MAX_ATTEMPTS; attempts++) {
+    const cards = deal(rng)
+    if (countSets(cards) >= 1) {
+      return { mode: 'C', cards, sets: enumerateSets(cards), attempts }
+    }
+  }
+  throw new Error(`generateModeC: no board with >=1 set within ${MAX_ATTEMPTS} attempts`)
+}
+
 /** Dispatch to the generator for the given mode. */
 export function generateBoard(mode: Mode, rng: RNG): Board {
-  return mode === 'A' ? generateModeA(rng) : generateModeB(rng)
+  if (mode === 'A') return generateModeA(rng)
+  if (mode === 'C') return generateModeC(rng)
+  return generateModeB(rng)
 }
