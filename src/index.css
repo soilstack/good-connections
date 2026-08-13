@@ -213,7 +213,7 @@ body {
 .leagues-section {
   margin-top: 20px;
   padding: 16px;
-  border: 1px dashed var(--card-border);
+  border: 1px solid var(--card-border);
   border-radius: 14px;
 }
 .section-label {
@@ -221,7 +221,88 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--muted);
-  margin: 0 0 8px;
+  margin: 0 0 10px;
+}
+.league-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.league-card {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: var(--bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  transition: border-color 0.15s ease, transform 0.1s ease;
+}
+.league-card:hover {
+  border-color: var(--accent);
+}
+.league-card:active {
+  transform: translateY(1px);
+}
+.league-name {
+  font-weight: 700;
+  font-size: 16px;
+}
+.league-meta {
+  color: var(--accent);
+  font-size: 13px;
+}
+.join-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.join-form .auth-input {
+  flex: 1;
+}
+
+/* ---- leaderboard ---- */
+.leaderboard {
+  margin-top: 24px;
+}
+.leader-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.leader-row {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+}
+.leader-row.is-you {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(79, 140, 255, 0.35);
+}
+.leader-rank {
+  color: var(--muted);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.leader-name {
+  font-weight: 600;
+}
+.leader-result {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
 }
 
 /* ---- menu ---- */

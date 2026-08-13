@@ -6,6 +6,8 @@ import { formatTime } from './format'
 import { Card } from './Card'
 import { CARD_THEMES, type CardTheme } from './cardThemes'
 import type { AuthState } from './useAuth'
+import { LeaguesPanel } from './LeaguesPanel'
+import type { League } from '../lib/leagues'
 
 interface MenuProps {
   onStart: (mode: Mode) => void
@@ -16,6 +18,7 @@ interface MenuProps {
   auth: AuthState
   onSignIn: () => void
   onSignOut: () => void
+  onSelectLeague: (league: League) => void
 }
 
 function AuthBar({
@@ -130,6 +133,7 @@ export function Menu({
   auth,
   onSignIn,
   onSignOut,
+  onSelectLeague,
 }: MenuProps) {
   const records = useMemo(() => loadRecords(), [refreshKey])
   const aggA = aggregateSolveTimes(records, 'practice', 'A')
@@ -144,14 +148,7 @@ export function Menu({
 
       <AuthBar auth={auth} onSignIn={onSignIn} onSignOut={onSignOut} />
 
-      {auth.status === 'signedIn' && (
-        <section className="leagues-section">
-          <h2 className="section-label">Leagues</h2>
-          <p className="muted">
-            Daily league puzzles are being wired up next — you’re signed in and ready to join one.
-          </p>
-        </section>
-      )}
+      {auth.status === 'signedIn' && <LeaguesPanel onSelectLeague={onSelectLeague} />}
 
       <ThemePicker value={cardTheme} onChange={onCardThemeChange} />
 

@@ -119,5 +119,24 @@ export async function getLeaderboard(leagueId: string, puzzleDate: string): Prom
     if (a.stats.completed !== b.stats.completed) return a.stats.completed ? -1 : 1
     return (a.stats.totalTimeMs ?? Infinity) - (b.stats.totalTimeMs ?? Infinity)
   })
-  return rows
+  // One row per player — their best attempt (first after the sort).
+  const seen = new Set<string>()
+  return rows.filter((r) => (seen.has(r.userId) ? false : (seen.add(r.userId), true)))
+}
+
+/** Has the signed-in user already submitted a game for this league + date? */
+export async function hasPlayedToday(leagueId: string, puzzleDate: string): Promise<boolean> {
+  const { data: userData } = await supabase.auth.getUser()
+  const userId = userData.user?.id
+  if (!userId) return false
+  const { data, error } = await supabase
+    .from('game_records')
+    .select('id')
+    .eq('context', 'league')
+    .eq('league_id', leagueId)
+    .eq('puzzle_date', puzzleDate)
+    .eq('user_id', userId)
+    .limit(1)
+  if (error) throw error
+  return (data ?? []).length > 0
 }

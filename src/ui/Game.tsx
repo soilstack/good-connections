@@ -1,10 +1,15 @@
+import { useCallback } from 'react'
 import type { Board } from '../game/board'
+import type { GameRecord } from '../game/telemetry'
 import { useSetGame } from './useSetGame'
 import { Board as BoardGrid } from './Board'
 import { AbandonDialog } from './AbandonDialog'
 import { Summary } from './Summary'
+import { LeagueResult } from './LeagueResult'
 import { Card } from './Card'
 import { formatTime } from './format'
+import { saveRecord } from './storage'
+import { submitLeagueRecord } from '../lib/leagues'
 
 const FEEDBACK_TEXT: Record<'valid' | 'invalid' | 'duplicate', string> = {
   valid: 'New set!',
@@ -12,26 +17,71 @@ const FEEDBACK_TEXT: Record<'valid' | 'invalid' | 'duplicate', string> = {
   duplicate: 'Already found',
 }
 
+export type GameSession =
+  | { kind: 'practice' }
+  | { kind: 'league'; leagueId: string; leagueName: string; puzzleDate: string; userId: string }
+
 interface GameProps {
   board: Board
-  onPlayAgain: () => void
-  onMenu: () => void
+  session: GameSession
+  /** Leave the game (back to menu / league list). */
+  onExit: () => void
+  /** Practice only: start another puzzle. */
+  onPlayAgain?: () => void
 }
 
-export function Game({ board, onPlayAgain, onMenu }: GameProps) {
-  const game = useSetGame(board, 'local')
+export function Game({ board, session, onExit, onPlayAgain }: GameProps) {
+  const persist = useCallback(
+    (record: GameRecord) => {
+      if (session.kind === 'league') {
+        void submitLeagueRecord({
+          leagueId: session.leagueId,
+          puzzleDate: session.puzzleDate,
+          mode: record.mode,
+          totalSets: record.totalSets,
+          startedAtMs: record.startedAtMs,
+          events: record.events,
+        })
+      } else {
+        saveRecord(record)
+      }
+    },
+    [session],
+  )
+
+  const game = useSetGame({
+    board,
+    player: session.kind === 'league' ? session.userId : 'local',
+    context: session.kind === 'league' ? 'league' : 'practice',
+    onPersist: persist,
+  })
+
   const showDenominator = board.mode === 'A'
   const foundSets = [...game.found].map((idx) => board.sets[idx]!)
 
   if (game.status === 'ended' && game.stats && game.endReason) {
+    if (session.kind === 'league') {
+      // No missed-set reveal while the league's daily slot is still open.
+      return (
+        <LeagueResult
+          leagueId={session.leagueId}
+          leagueName={session.leagueName}
+          puzzleDate={session.puzzleDate}
+          userId={session.userId}
+          stats={game.stats}
+          endReason={game.endReason}
+          onExit={onExit}
+        />
+      )
+    }
     return (
       <Summary
         board={board}
         stats={game.stats}
         endReason={game.endReason}
         missedSets={game.missedSets}
-        onPlayAgain={onPlayAgain}
-        onMenu={onMenu}
+        onPlayAgain={onPlayAgain ?? onExit}
+        onMenu={onExit}
       />
     )
   }
@@ -40,7 +90,9 @@ export function Game({ board, onPlayAgain, onMenu }: GameProps) {
     <div className="game">
       <header className="game-head">
         <div className="head-left">
-          <span className="mode-badge">Mode {board.mode}</span>
+          <span className="mode-badge">
+            {session.kind === 'league' ? session.leagueName : `Mode ${board.mode}`}
+          </span>
           <span className="count">
             {game.foundCount}
             {showDenominator && <span className="count-denom"> / {game.totalSets}</span>}

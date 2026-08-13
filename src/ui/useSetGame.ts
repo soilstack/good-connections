@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Board } from '../game/board'
 import { isSet, type Triple } from '../game/set'
-import { GameRecorder, deriveStats, type GameRecord, type GameStats } from '../game/telemetry'
-import { saveRecord } from './storage'
+import {
+  GameRecorder,
+  deriveStats,
+  type GameContext,
+  type GameRecord,
+  type GameStats,
+} from '../game/telemetry'
 
 /**
  * All the play-time state for one fixed-board game, wired to the pure
@@ -52,13 +57,21 @@ function findSetIndex(sets: readonly Triple[], sorted: Triple): number {
   return sets.findIndex((s) => s[0] === sorted[0] && s[1] === sorted[1] && s[2] === sorted[2])
 }
 
-export function useSetGame(board: Board, player: string): SetGameState {
+export interface UseSetGameOptions {
+  board: Board
+  player: string
+  context: GameContext
+  /** Called once with the final record when the game ends (save/submit). */
+  onPersist?: (record: GameRecord) => void
+}
+
+export function useSetGame({ board, player, context, onPersist }: UseSetGameOptions): SetGameState {
   const recorderRef = useRef<GameRecorder | null>(null)
   if (recorderRef.current === null) {
     recorderRef.current = new GameRecorder({
       id: makeId(),
       player,
-      context: 'practice',
+      context,
       mode: board.mode,
       totalSets: board.sets.length,
       now: () => Date.now(),
@@ -110,10 +123,10 @@ export function useSetGame(board: Board, player: string): SetGameState {
       setElapsedMs(last ? last.t_ms : 0)
       if (!savedRef.current) {
         savedRef.current = true
-        saveRecord(rec)
+        onPersist?.(rec)
       }
     },
-    [recorder],
+    [recorder, onPersist],
   )
 
   const evaluate = useCallback(

@@ -1,24 +1,31 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, type ReactNode } from 'react'
 import { generateBoard, type Board, type Mode } from './game/board'
 import { Menu } from './ui/Menu'
 import { Game } from './ui/Game'
+import { LeagueResult } from './ui/LeagueResult'
 import { CardThemeProvider } from './ui/CardThemeContext'
 import { loadCardTheme, saveCardTheme, type CardTheme } from './ui/cardThemes'
 import { useAuth } from './ui/useAuth'
 import { SignIn } from './ui/SignIn'
 import { DisplayNamePrompt } from './ui/DisplayNamePrompt'
+import { supabase } from './lib/supabase'
+import { getTodayPuzzle, hasPlayedToday, type League, type TodayPuzzle } from './lib/leagues'
 
 /**
- * App shell. Practice mode works signed-out; signing in (magic link) unlocks
- * league play. Auth screens take over only when there is something to do —
- * picking a display name after first sign-in, or the sign-in form itself.
+ * App shell. Practice works signed-out; signing in (magic link) unlocks league
+ * play — join by code, then today's shared puzzle and its leaderboard.
  */
 
 interface Playing {
   board: Board
-  // A key so "play again" remounts the Game (fresh recorder + clock).
-  gameId: number
+  gameId: number // remounts Game on "play again"
 }
+
+type LeagueView =
+  | { phase: 'loading'; league: League }
+  | { phase: 'error'; league: League; message: string }
+  | { phase: 'play'; league: League; puzzle: TodayPuzzle; userId: string }
+  | { phase: 'result'; league: League; puzzleDate: string; userId: string }
 
 export function App() {
   const auth = useAuth()
@@ -26,18 +33,16 @@ export function App() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [cardTheme, setCardTheme] = useState<CardTheme>(loadCardTheme)
   const [showSignIn, setShowSignIn] = useState(false)
+  const [league, setLeague] = useState<LeagueView | null>(null)
 
   const start = useCallback((mode: Mode) => {
-    const board = generateBoard(mode, Math.random)
-    setPlaying({ board, gameId: Date.now() })
+    setPlaying({ board: generateBoard(mode, Math.random), gameId: Date.now() })
   }, [])
 
   const playAgain = useCallback(() => {
-    setPlaying((prev) => {
-      if (!prev) return prev
-      const board = generateBoard(prev.board.mode, Math.random)
-      return { board, gameId: Date.now() }
-    })
+    setPlaying((prev) =>
+      prev ? { board: generateBoard(prev.board.mode, Math.random), gameId: Date.now() } : prev,
+    )
     setRefreshKey((k) => k + 1)
   }, [])
 
@@ -51,23 +56,99 @@ export function App() {
     saveCardTheme(theme)
   }, [])
 
-  const wrap = (node: React.ReactNode) => <CardThemeProvider theme={cardTheme}>{node}</CardThemeProvider>
+  const selectLeague = useCallback(async (l: League) => {
+    setLeague({ phase: 'loading', league: l })
+    try {
+      const puzzle = await getTodayPuzzle(l.id)
+      const played = await hasPlayedToday(l.id, puzzle.puzzleDate)
+      const { data } = await supabase.auth.getUser()
+      const userId = data.user?.id ?? ''
+      if (played) {
+        setLeague({ phase: 'result', league: l, puzzleDate: puzzle.puzzleDate, userId })
+      } else {
+        setLeague({ phase: 'play', league: l, puzzle, userId })
+      }
+    } catch (e) {
+      setLeague({ phase: 'error', league: l, message: e instanceof Error ? e.message : String(e) })
+    }
+  }, [])
 
-  // First sign-in with no profile yet: must choose a display name before anything else.
+  const exitLeague = useCallback(() => {
+    setLeague(null)
+    setRefreshKey((k) => k + 1)
+  }, [])
+
+  const wrap = (node: ReactNode) => <CardThemeProvider theme={cardTheme}>{node}</CardThemeProvider>
+
   if (auth.state.status === 'needsProfile') {
     return wrap(
       <DisplayNamePrompt email={auth.state.email} onSave={auth.saveDisplayName} onSignOut={auth.signOut} />,
     )
   }
 
-  // Sign-in form, when the user asked for it.
   if (showSignIn && auth.state.status !== 'signedIn') {
     return wrap(<SignIn onSend={auth.sendMagicLink} onCancel={() => setShowSignIn(false)} />)
   }
 
+  if (league) {
+    if (league.phase === 'loading') {
+      return wrap(
+        <div className="auth-screen">
+          <div className="auth-card">
+            <h1>Loading…</h1>
+            <p className="muted">Fetching today’s puzzle for {league.league.name}.</p>
+          </div>
+        </div>,
+      )
+    }
+    if (league.phase === 'error') {
+      return wrap(
+        <div className="auth-screen">
+          <div className="auth-card">
+            <h1>Couldn’t load</h1>
+            <p className="auth-error">{league.message}</p>
+            <button type="button" className="btn btn-ghost" onClick={exitLeague}>
+              Back
+            </button>
+          </div>
+        </div>,
+      )
+    }
+    if (league.phase === 'result') {
+      return wrap(
+        <LeagueResult
+          leagueId={league.league.id}
+          leagueName={league.league.name}
+          puzzleDate={league.puzzleDate}
+          userId={league.userId}
+          onExit={exitLeague}
+        />,
+      )
+    }
+    return wrap(
+      <Game
+        board={league.puzzle.board}
+        session={{
+          kind: 'league',
+          leagueId: league.league.id,
+          leagueName: league.league.name,
+          puzzleDate: league.puzzle.puzzleDate,
+          userId: league.userId,
+        }}
+        onExit={exitLeague}
+      />,
+    )
+  }
+
   if (playing) {
     return wrap(
-      <Game key={playing.gameId} board={playing.board} onPlayAgain={playAgain} onMenu={toMenu} />,
+      <Game
+        key={playing.gameId}
+        board={playing.board}
+        session={{ kind: 'practice' }}
+        onExit={toMenu}
+        onPlayAgain={playAgain}
+      />,
     )
   }
 
@@ -80,6 +161,7 @@ export function App() {
       auth={auth.state}
       onSignIn={() => setShowSignIn(true)}
       onSignOut={auth.signOut}
+      onSelectLeague={selectLeague}
     />,
   )
 }
