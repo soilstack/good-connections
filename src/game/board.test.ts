@@ -150,6 +150,15 @@ describe('generateModeC (hardcore)', () => {
   })
 })
 
+describe('unknown-count board bias', () => {
+  it('keeps richer boards: average set count is well above the unbiased ~2.78', () => {
+    let total = 0
+    const N = 300
+    for (let seed = 0; seed < N; seed++) total += generateBoard('B', mulberry32(seed)).sets.length
+    expect(total / N).toBeGreaterThan(3.1)
+  })
+})
+
 describe('generateBoard dispatch', () => {
   it('delegates to the mode-specific generator', () => {
     expect(generateBoard('A', mulberry32(3)).sets).toHaveLength(MODE_A_SET_COUNT)

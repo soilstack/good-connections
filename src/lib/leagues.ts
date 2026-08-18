@@ -15,13 +15,15 @@ export interface League {
   timezone: string
   mode: Mode
   join_code: string
+  /** Mode C base penalty in ms (nth false done costs base * 2^(n-1)). */
+  penalty_base_ms: number
 }
 
 /** Leagues the signed-in user belongs to. */
 export async function getMyLeagues(): Promise<League[]> {
   const { data, error } = await supabase
     .from('memberships')
-    .select('leagues(id, name, timezone, mode, join_code)')
+    .select('leagues(id, name, timezone, mode, join_code, penalty_base_ms)')
   if (error) throw new Error(error.message)
   const rows = (data ?? []) as unknown as { leagues: League | League[] | null }[]
   const leagues: League[] = []

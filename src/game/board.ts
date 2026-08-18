@@ -90,19 +90,26 @@ function deal(rng: RNG): Card[] {
 }
 
 /**
- * Mode B — unknown count. An ordinary random 12-card deal, with one hard
- * constraint: a board with zero sets can never end (there is no "done" action),
- * so it must never be dealt. Reshuffle until at least one set exists. About 3%
- * of deals are rejected.
+ * Deal an unknown-count board (Modes B and C), biased toward richer boards: a
+ * freshly-dealt board with N sets is kept with probability min(N/6, 1),
+ * otherwise re-drawn. Setless boards (N=0) are always rejected — with no auto
+ * end they could never finish. This makes 1- and 2-set boards rare so the
+ * puzzle stays interesting.
  */
-export function generateModeB(rng: RNG): Board {
+function generateBiasedUnknown(rng: RNG, mode: 'B' | 'C'): Board {
   for (let attempts = 1; attempts <= MAX_ATTEMPTS; attempts++) {
     const cards = deal(rng)
-    if (countSets(cards) >= 1) {
-      return { mode: 'B', cards, sets: enumerateSets(cards), attempts }
+    const n = countSets(cards)
+    if (n >= 1 && (n >= 6 || rng() < n / 6)) {
+      return { mode, cards, sets: enumerateSets(cards), attempts }
     }
   }
-  throw new Error(`generateModeB: no board with >=1 set within ${MAX_ATTEMPTS} attempts`)
+  throw new Error(`generateMode${mode}: no acceptable board within ${MAX_ATTEMPTS} attempts`)
+}
+
+/** Mode B — unknown count, auto-ends when the last set is found. */
+export function generateModeB(rng: RNG): Board {
+  return generateBiasedUnknown(rng, 'B')
 }
 
 /**
@@ -122,18 +129,11 @@ export function generateModeA(rng: RNG): Board {
 }
 
 /**
- * Mode C — hardcore. Same board as Mode B (unknown count, at least one set);
- * the difference is entirely in play (no auto-end, declare "done" with
- * penalties), not in generation.
+ * Mode C — hardcore. Same biased unknown-count board as Mode B; the difference
+ * is entirely in play (no auto-end, declare "done" with penalties).
  */
 export function generateModeC(rng: RNG): Board {
-  for (let attempts = 1; attempts <= MAX_ATTEMPTS; attempts++) {
-    const cards = deal(rng)
-    if (countSets(cards) >= 1) {
-      return { mode: 'C', cards, sets: enumerateSets(cards), attempts }
-    }
-  }
-  throw new Error(`generateModeC: no board with >=1 set within ${MAX_ATTEMPTS} attempts`)
+  return generateBiasedUnknown(rng, 'C')
 }
 
 /** Dispatch to the generator for the given mode. */

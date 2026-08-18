@@ -34,8 +34,9 @@ export type TelemetryEvent =
   // A valid set the player had already found — a wasted re-selection, not an error.
   | { t_ms: number; type: 'set_duplicate'; payload: { cards: [CardIndex, CardIndex, CardIndex]; setIndex: number } }
   | { t_ms: number; type: 'deal'; payload: { added: number } }
-  // Mode C: the player declared "done". `complete` false = premature (penalised).
-  | { t_ms: number; type: 'done_attempt'; payload: { complete: boolean } }
+  // Mode C: the player declared "done". `complete` false = premature; `penaltyMs`
+  // is the penalty this attempt cost (0 for the final, correct done).
+  | { t_ms: number; type: 'done_attempt'; payload: { complete: boolean; penaltyMs: number } }
   | { t_ms: number; type: 'abandon_prompt'; payload: Record<string, never> }
   | { t_ms: number; type: 'abandon_cancel'; payload: Record<string, never> }
   | { t_ms: number; type: 'game_end'; payload: { reason: 'completed' | 'abandoned' } }
@@ -116,8 +117,8 @@ export class GameRecorder {
   }
 
   /** Mode C: the player declared "done"; `complete` false means premature. */
-  doneAttempt(complete: boolean): void {
-    this.events.push({ t_ms: this.t(), type: 'done_attempt', payload: { complete } })
+  doneAttempt(complete: boolean, penaltyMs: number): void {
+    this.events.push({ t_ms: this.t(), type: 'done_attempt', payload: { complete, penaltyMs } })
   }
 
   cardSelect(card: CardIndex): void {
@@ -197,13 +198,9 @@ export interface GameStats {
   abandonPrompts: number
 }
 
-/** Mode C base penalty; the nth premature done costs BASE * 2^(n-1). */
+/** Default Mode C base penalty; the nth premature done costs BASE * 2^(n-1).
+ * A league may override this via leagues.penalty_base_ms. */
 export const MODE_C_BASE_PENALTY_MS = 5000
-
-/** Total Mode C penalty time for a given number of premature dones. */
-export function modeCPenaltyMs(falseDones: number): number {
-  return MODE_C_BASE_PENALTY_MS * (2 ** falseDones - 1)
-}
 
 /** Derive a game's statistics from its log. Never stored — computed on read. */
 export function deriveStats(record: GameRecord): GameStats {
@@ -211,6 +208,7 @@ export function deriveStats(record: GameRecord): GameStats {
   let errorCount = 0
   let duplicateCount = 0
   let falseDones = 0
+  let penaltyMs = 0
   let abandonPrompts = 0
   let totalTimeMs: number | null = null
   let completed = false
@@ -229,6 +227,7 @@ export function deriveStats(record: GameRecord): GameStats {
         break
       case 'done_attempt':
         if (!ev.payload.complete) falseDones++
+        penaltyMs += ev.payload.penaltyMs
         break
       case 'abandon_prompt':
         abandonPrompts++
@@ -258,7 +257,7 @@ export function deriveStats(record: GameRecord): GameStats {
     errorRate: attempts > 0 ? errorCount / attempts : 0,
     duplicateCount,
     falseDones,
-    penaltyMs: modeCPenaltyMs(falseDones),
+    penaltyMs,
     completed,
     abandoned,
     abandonPrompts,

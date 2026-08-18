@@ -66,9 +66,16 @@ export interface UseSetGameOptions {
   board: Board
   player: string
   context: GameContext
+  /** Mode C base penalty (ms); the nth false done costs base * 2^(n-1). */
+  penaltyBaseMs?: number
 }
 
-export function useSetGame({ board, player, context }: UseSetGameOptions): SetGameState {
+export function useSetGame({
+  board,
+  player,
+  context,
+  penaltyBaseMs = MODE_C_BASE_PENALTY_MS,
+}: UseSetGameOptions): SetGameState {
   const recorderRef = useRef<GameRecorder | null>(null)
   if (recorderRef.current === null) {
     recorderRef.current = new GameRecorder({
@@ -206,12 +213,12 @@ export function useSetGame({ board, player, context }: UseSetGameOptions): SetGa
   const pressDone = useCallback(() => {
     if (status !== 'playing' || abandonOpen) return
     if (found.size === board.sets.length) {
-      recorder.doneAttempt(true)
+      recorder.doneAttempt(true, 0)
       finish('completed')
       return
     }
-    recorder.doneAttempt(false)
-    const penalty = MODE_C_BASE_PENALTY_MS * 2 ** failedDonesRef.current
+    const penalty = penaltyBaseMs * 2 ** failedDonesRef.current
+    recorder.doneAttempt(false, penalty)
     recorder.addPenalty(penalty)
     failedDonesRef.current += 1
     penaltyRef.current += penalty
@@ -219,7 +226,7 @@ export function useSetGame({ board, player, context }: UseSetGameOptions): SetGa
     if (noticeTimer.current !== null) window.clearTimeout(noticeTimer.current)
     setNotice(`You didn’t find all — +${penalty / 1000}s`)
     noticeTimer.current = window.setTimeout(() => setNotice(null), 1800)
-  }, [status, abandonOpen, found, board, recorder, finish])
+  }, [status, abandonOpen, found, board, recorder, finish, penaltyBaseMs])
 
   const missedSets =
     status === 'ended' ? board.sets.filter((_, idx) => !found.has(idx)) : []

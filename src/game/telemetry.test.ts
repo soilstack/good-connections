@@ -184,10 +184,10 @@ describe('Mode C penalties', () => {
       totalSets: 2,
       now: fakeClock([1000, 1200, 1200, 3000]),
     })
-    rec.doneAttempt(false) // t = 1200-1000 + 0 = 200
+    rec.doneAttempt(false, 5000) // t = 1200-1000 + 0 = 200
     rec.addPenalty(5000)
     rec.setValid([0, 1, 2], 0) // t = 1200-1000 + 5000 = 5200
-    rec.doneAttempt(true) // t = 3000-1000 + 5000 = 7000
+    rec.doneAttempt(true, 0) // t = 3000-1000 + 5000 = 7000
     const record = rec.record()
     expect(record.events.map((e) => [e.type, e.t_ms])).toEqual([
       ['done_attempt', 200],
@@ -196,6 +196,7 @@ describe('Mode C penalties', () => {
     ])
     const s = deriveStats(record)
     expect(s.falseDones).toBe(1)
+    expect(s.penaltyMs).toBe(5000)
     expect(s.setsFound).toBe(1)
   })
 })

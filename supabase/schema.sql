@@ -31,6 +31,7 @@ create table if not exists leagues (
   timezone text not null,                       -- IANA tz, e.g. 'Asia/Singapore'
   mode text not null check (mode in ('A', 'B', 'C')),
   join_code text not null unique,               -- players use this to join
+  penalty_base_ms int not null default 5000,    -- Mode C: base penalty (doubles each false done)
   created_by uuid references auth.users (id),
   created_at timestamptz not null default now()
 );

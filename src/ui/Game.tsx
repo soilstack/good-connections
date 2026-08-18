@@ -18,7 +18,14 @@ const FEEDBACK_TEXT: Record<'valid' | 'invalid' | 'duplicate', string> = {
 
 export type GameSession =
   | { kind: 'practice' }
-  | { kind: 'league'; leagueId: string; leagueName: string; puzzleDate: string; userId: string }
+  | {
+      kind: 'league'
+      leagueId: string
+      leagueName: string
+      puzzleDate: string
+      userId: string
+      penaltyBaseMs: number
+    }
 
 interface GameProps {
   board: Board
@@ -34,6 +41,7 @@ export function Game({ board, session, onExit, onPlayAgain }: GameProps) {
     board,
     player: session.kind === 'league' ? session.userId : 'local',
     context: session.kind === 'league' ? 'league' : 'practice',
+    ...(session.kind === 'league' ? { penaltyBaseMs: session.penaltyBaseMs } : {}),
   })
 
   const persistedRef = useRef(false)

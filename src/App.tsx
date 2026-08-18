@@ -135,6 +135,7 @@ export function App() {
           leagueName: league.league.name,
           puzzleDate: league.puzzle.puzzleDate,
           userId: league.userId,
+          penaltyBaseMs: league.league.penalty_base_ms,
         }}
         onExit={exitLeague}
       />,
