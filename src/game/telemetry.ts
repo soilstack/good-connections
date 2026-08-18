@@ -387,6 +387,64 @@ export function matchHighlights(events: readonly TelemetryEvent[]): MatchHighlig
 }
 
 /**
+ * How close a player's find order came to the board's canonical scan order.
+ *
+ * The ideal is what an exhaustive scanner produces: pin the first card, sweep
+ * for every set containing it, then pin the second, and so on. That is exactly
+ * the order enumerateSets emits, and board.sets is stored in it — so a set's
+ * index IS its ideal rank, and this needs nothing but the event log. No board,
+ * no solution, nothing new sent to the client or stored.
+ *
+ * Scored as the share of set PAIRS found in scan order (Kendall's tau-a, shifted
+ * into 0..1). A rate is used rather than exact-position matches because a single
+ * early find shifts every later position, which would score a near-perfect
+ * sequence at nearly zero.
+ */
+export interface ScanOrderScore {
+  /** Sets the score is over — the ones the player actually found. */
+  setsFound: number
+  inOrderPairs: number
+  totalPairs: number
+  /** inOrderPairs / totalPairs. 0.5 is chance, 1 a perfect scan, 0 exact reverse. */
+  inOrderRate: number
+  /** Kendall's tau-a, = 2 * inOrderRate - 1. Same information, familiar scale. */
+  tau: number
+}
+
+/**
+ * Below this many finds the score is noise, not signal: with two sets there are
+ * only two possible orders, so the "metric" is a coin flip.
+ */
+export const MIN_SETS_FOR_SCAN_ORDER = 4
+
+/** Null when too few sets were found for the number to mean anything. */
+export function scanOrderScore(events: readonly TelemetryEvent[]): ScanOrderScore | null {
+  const order: number[] = []
+  for (const ev of events) {
+    if (ev.type === 'set_valid') order.push(ev.payload.setIndex)
+  }
+  if (order.length < MIN_SETS_FOR_SCAN_ORDER) return null
+
+  // O(k²) over at most ~14 sets. Indices are distinct: a set can only be found
+  // once, and re-selecting it logs set_duplicate instead.
+  let inOrderPairs = 0
+  for (let i = 0; i < order.length; i++) {
+    for (let j = i + 1; j < order.length; j++) {
+      if (order[i]! < order[j]!) inOrderPairs++
+    }
+  }
+  const totalPairs = (order.length * (order.length - 1)) / 2
+  const inOrderRate = inOrderPairs / totalPairs
+  return {
+    setsFound: order.length,
+    inOrderPairs,
+    totalPairs,
+    inOrderRate,
+    tau: 2 * inOrderRate - 1,
+  }
+}
+
+/**
  * Records matching a context and mode. The obvious place for a silent bug is a
  * query that forgets this filter, so `context` and `mode` are required and there
  * is no default — omitting either fails to compile. Modes are never mixed in one
@@ -510,6 +568,13 @@ export interface PlayerSummary {
   mostErrors: Superlative | null
   longestStall: Superlative | null
   mostFalseDones: Superlative | null
+  /**
+   * Mean share of set pairs found in canonical scan order, over the completed
+   * games long enough to score. Null when no game qualifies. Per-game this
+   * number is noisy — six sets is fifteen pairs — so it is only ever reported
+   * as a season aggregate.
+   */
+  scanOrder: { rate: number; games: number } | null
 }
 
 export function summarisePlayer(
@@ -517,8 +582,16 @@ export function summarisePlayer(
   context: GameContext,
   mode: Mode,
 ): PlayerSummary {
-  const games = select(records, context, mode).map((r) => ({ id: r.id, stats: deriveStats(r) }))
+  const selected = select(records, context, mode)
+  const games = selected.map((r) => ({ id: r.id, stats: deriveStats(r) }))
   const completed = games.filter((g) => g.stats.completed)
+
+  // Completed games only, like the means above — one rule for the whole page.
+  const scanRates = selected
+    .filter((r) => deriveStats(r).completed)
+    .map((r) => scanOrderScore(r.events))
+    .filter((s): s is ScanOrderScore => s !== null)
+    .map((s) => s.inOrderRate)
 
   // Strict >, so the earliest game wins a tie and the result is deterministic.
   const best = (
@@ -558,6 +631,8 @@ export function summarisePlayer(
       g.stats.setIntervalsMs.length > 0 ? Math.max(...g.stats.setIntervalsMs) : 0,
     ),
     mostFalseDones: best((g) => g.stats.falseDones),
+    scanOrder:
+      scanRates.length > 0 ? { rate: mean(scanRates), games: scanRates.length } : null,
   }
 }
 

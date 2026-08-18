@@ -513,6 +513,33 @@ body {
   font-size: 12px;
   margin-top: 8px;
 }
+/* Scan order: one number that needs its explanation beside it. */
+.scan-order {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+}
+.scan-order-value {
+  font-size: 30px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.scan-order-label {
+  display: block;
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+.scan-order p {
+  margin: 0;
+  font-size: 12px;
+}
 .match-note {
   margin: 0 0 10px;
   font-size: 13px;

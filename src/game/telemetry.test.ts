@@ -6,6 +6,7 @@ import {
   aggregateSolveTimes,
   completionRate,
   matchHighlights,
+  scanOrderScore,
   standings,
   summarisePlayer,
   type GameRecord,
@@ -304,6 +305,69 @@ describe('matchHighlights', () => {
   })
 })
 
+describe('scanOrderScore', () => {
+  /** A game whose sets were found in the given board order. */
+  const inOrder = (order: number[]): TelemetryEvent[] =>
+    order.map((setIndex, i) => ({
+      t_ms: 10_000 * (i + 1),
+      type: 'set_valid' as const,
+      payload: { cards: [0, 1, 2] as [number, number, number], setIndex },
+    }))
+
+  it('scores a perfect scan at 1', () => {
+    const s = scanOrderScore(inOrder([0, 1, 2, 3, 4, 5]))!
+    expect(s.inOrderPairs).toBe(15)
+    expect(s.totalPairs).toBe(15)
+    expect(s.inOrderRate).toBe(1)
+    expect(s.tau).toBe(1)
+  })
+
+  it('scores the exact reverse at 0', () => {
+    const s = scanOrderScore(inOrder([5, 4, 3, 2, 1, 0]))!
+    expect(s.inOrderPairs).toBe(0)
+    expect(s.inOrderRate).toBe(0)
+    expect(s.tau).toBe(-1)
+  })
+
+  it('charges one adjacent swap exactly one pair', () => {
+    const s = scanOrderScore(inOrder([1, 0, 2, 3, 4, 5]))!
+    expect(s.inOrderPairs).toBe(14)
+    expect(s.inOrderRate).toBeCloseTo(14 / 15)
+  })
+
+  it('is a rate, so it does not punish a near-perfect run for one late find', () => {
+    // Found the last set first, then the rest in order: only 5 pairs inverted,
+    // though an exact-position measure would score this at zero.
+    const s = scanOrderScore(inOrder([5, 0, 1, 2, 3, 4]))!
+    expect(s.inOrderPairs).toBe(10)
+    expect(s.inOrderRate).toBeCloseTo(10 / 15)
+  })
+
+  it('scores a partial game over the sets actually found', () => {
+    const s = scanOrderScore(inOrder([0, 3, 1, 5]))!
+    expect(s.setsFound).toBe(4)
+    expect(s.totalPairs).toBe(6)
+    expect(s.inOrderPairs).toBe(5) // only (3,1) is out of order
+  })
+
+  it('refuses to score too few sets, where the number would be noise', () => {
+    expect(scanOrderScore(inOrder([0, 1, 2]))).toBeNull()
+    expect(scanOrderScore(inOrder([1, 0]))).toBeNull()
+    expect(scanOrderScore([])).toBeNull()
+  })
+
+  it('ignores everything that is not a find', () => {
+    const events: TelemetryEvent[] = [
+      { t_ms: 1, type: 'card_select', payload: { card: 4 } },
+      ...inOrder([0, 1, 2, 3]),
+      { t_ms: 9, type: 'set_invalid', payload: { cards: [0, 1, 2] } },
+      { t_ms: 10, type: 'set_duplicate', payload: { cards: [0, 1, 2], setIndex: 0 } },
+      { t_ms: 11, type: 'game_end', payload: { reason: 'completed' } },
+    ]
+    expect(scanOrderScore(events)?.inOrderRate).toBe(1)
+  })
+})
+
 describe('summarisePlayer', () => {
   const abandoned = (id: string, opts: { validAt: number[]; endAt: number; invalid?: number }): GameRecord => {
     const events: TelemetryEvent[] = opts.validAt.map((t) => ({
@@ -390,6 +454,33 @@ describe('summarisePlayer', () => {
     const s = summarisePlayer(records, 'league', 'A')
     expect(s.gamesPlayed).toBe(1)
     expect(s.meanTotalTimeMs).toBe(100_000)
+  })
+
+  it('averages scan order over completed games long enough to score', () => {
+    const withOrder = (id: string, order: number[], reason: 'completed' | 'abandoned') => {
+      const events: TelemetryEvent[] = order.map((setIndex, i) => ({
+        t_ms: 10_000 * (i + 1),
+        type: 'set_valid' as const,
+        payload: { cards: [0, 1, 2] as [number, number, number], setIndex },
+      }))
+      events.push({ t_ms: 99_000, type: 'game_end', payload: { reason } })
+      return { id, player: 'p', context: 'league', mode: 'A', totalSets: 6, startedAtMs: 0, events } as GameRecord
+    }
+    const s = summarisePlayer(
+      [
+        withOrder('perfect', [0, 1, 2, 3, 4, 5], 'completed'), // rate 1
+        withOrder('reversed', [5, 4, 3, 2, 1, 0], 'completed'), // rate 0
+        withOrder('quit', [0, 1, 2, 3, 4, 5], 'abandoned'), // excluded: not completed
+        withOrder('short', [0, 1], 'completed'), // excluded: too few sets
+      ],
+      'league',
+      'A',
+    )
+    expect(s.scanOrder).toEqual({ rate: 0.5, games: 2 })
+  })
+
+  it('has no scan order at all when nothing qualifies', () => {
+    expect(summarisePlayer([], 'league', 'A').scanOrder).toBeNull()
   })
 
   it('reports false dones as a superlative', () => {

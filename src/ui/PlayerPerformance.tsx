@@ -155,6 +155,21 @@ export function PlayerPerformanceView({
             would make giving up look like getting faster.
           </p>
 
+          {s.scanOrder && (
+            <section className="scan-order">
+              <span className="scan-order-value">{pct(s.scanOrder.rate)}</span>
+              <div>
+                <span className="scan-order-label">Scan order</span>
+                <p className="muted">
+                  Share of set pairs found in the order an exhaustive left-to-right scan would
+                  find them, over {s.scanOrder.games} game{s.scanOrder.games === 1 ? '' : 's'}.
+                  50% is what picking at random gets you; higher means you work the board more
+                  systematically. Too noisy to read game by game, so only the average is shown.
+                </p>
+              </div>
+            </section>
+          )}
+
           <section className="league-stats">
             <h2 className="section-label">Every game</h2>
             <PlayerPaceChart games={history.games} />
