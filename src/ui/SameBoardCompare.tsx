@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react'
 import type { LeaderboardRow } from '../lib/leagues'
 import { formatTime } from './format'
+import { H, M, OffScaleMark, PLOT_W, W, YAxis, Y_CAP_MS, yScale } from './paceChart'
 
 /**
  * Pace chart for today's identical board: cumulative time (Y) vs sets found
@@ -9,10 +9,8 @@ import { formatTime } from './format'
  * red rings, the final (correct) one as a square that carries the penalty time.
  * Only shown once the viewer has completed, so it reveals nothing new.
  *
- * The Y axis stops at 6:00. One player who stared at the board for twenty
- * minutes would otherwise squash everyone else's line into the bottom eighth of
- * the chart; past the cap the line flattens against the top edge and each
- * off-scale point becomes a ▲ whose tooltip still carries the real time.
+ * Box, Y scale and the 6:00 cap come from ./paceChart, shared with the
+ * per-player chart.
  *
  * Colours: Okabe-Ito categorical palette (published colourblind-safe order).
  */
@@ -39,39 +37,6 @@ interface Series {
   colour: string
   setPoints: { n: number; atMs: number }[]
   dones: DoneMark[]
-}
-
-const W = 360
-const H = 210
-const M = { l: 46, r: 14, t: 12, b: 28 }
-const PLOT_W = W - M.l - M.r
-const PLOT_H = H - M.t - M.b
-
-/** Y axis never runs past this; anything slower clamps to the top edge. */
-const Y_CAP_MS = 6 * 60 * 1000
-
-/** Upward triangle marking a point that sits above the Y cap. */
-function OffScaleMark({
-  cx,
-  cy,
-  colour,
-  premature,
-  children,
-}: {
-  cx: number
-  cy: number
-  colour: string
-  premature?: boolean
-  children: ReactNode
-}) {
-  return (
-    <path
-      d={`M ${cx} ${cy - 5.5} L ${cx + 5} ${cy + 3.5} L ${cx - 5} ${cy + 3.5} Z`}
-      {...(premature ? { className: 'pc-premdone' } : { fill: colour })}
-    >
-      {children}
-    </path>
-  )
 }
 
 export function SameBoardCompare({
@@ -112,8 +77,8 @@ export function SameBoardCompare({
     ...series.flatMap((s) => [...s.setPoints.map((p) => p.atMs), ...s.dones.map((d) => d.atMs)]),
     1,
   )
-  const maxT = Math.min(dataMaxT, Y_CAP_MS)
-  const anyOffScale = dataMaxT > maxT
+  const scale = yScale(dataMaxT)
+  const { y, maxT } = scale
   // Sets sit on integer x (1..n); each "done" gets its own slot half a step
   // after the set count when it happened, so dones never stack on a set.
   const doneXs = series.flatMap((s) => s.dones.map((d) => d.setsAt + 0.5))
@@ -121,9 +86,6 @@ export function SameBoardCompare({
   const xMax = Math.max(maxN, ...doneXs)
   const x = (v: number) => (xMax > xMin ? M.l + ((v - xMin) / (xMax - xMin)) * PLOT_W : M.l + PLOT_W / 2)
   const doneTickXs = [...new Set(doneXs)].sort((a, b) => a - b)
-  const y = (t: number) => M.t + (1 - Math.min(t, maxT) / maxT) * PLOT_H
-
-  const yTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => ({ f, value: maxT * f }))
   const xTicks = Array.from({ length: maxN }, (_, i) => i + 1)
   const anyDones = series.some((s) => s.dones.length > 0)
 
@@ -131,15 +93,7 @@ export function SameBoardCompare({
     <section className="league-stats">
       <h2 className="section-label">Today’s board — pace</h2>
       <svg className="pace-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Solve pace by player">
-        {yTicks.map((t) => (
-          <g key={t.f}>
-            <line x1={M.l} x2={W - M.r} y1={y(t.value)} y2={y(t.value)} className="pc-grid" />
-            <text x={M.l - 6} y={y(t.value)} className="pc-ylabel">
-              {formatTime(t.value)}
-              {anyOffScale && t.f === 1 ? '+' : ''}
-            </text>
-          </g>
-        ))}
+        <YAxis scale={scale} />
         {xTicks.map((n) => (
           <text key={n} x={x(n)} y={H - 8} className="pc-xlabel">
             {n}
@@ -201,8 +155,7 @@ export function SameBoardCompare({
                       key={`d${di}`}
                       cx={cx + nudge}
                       cy={y(d.atMs)}
-                      colour={s.colour}
-                      premature={!d.complete}
+                      {...(d.complete ? { colour: s.colour } : { className: 'pc-premdone' })}
                     >
                       {title}
                     </OffScaleMark>
@@ -235,7 +188,7 @@ export function SameBoardCompare({
       <p className="muted pace-caption">
         X = sets found, Y = elapsed time (incl. penalties).
         {anyDones && ' ▢ done · ◯ false done.'}
-        {anyOffScale && ` ▲ past ${formatTime(Y_CAP_MS)} — hover for the real time.`} Hover a point
+        {scale.anyOffScale && ` ▲ past ${formatTime(Y_CAP_MS)} — hover for the real time.`} Hover a point
         for detail.
       </p>
     </section>
