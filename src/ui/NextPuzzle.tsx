@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { formatCountdown, nextMidnightMs, zoneLabel } from '../lib/time'
+import { formatClock, formatCountdown, nextMidnightMs } from '../lib/time'
 
 /**
  * "Next puzzle in 7h 12m" — counts down to the next midnight in the league's
@@ -17,13 +17,12 @@ export function NextPuzzle({ timezone }: { timezone: string }) {
   const next = nextMidnightMs(timezone, now)
   if (next === null) return null
   const remaining = next - now
-  const zone = zoneLabel(timezone, next)
 
   return (
     <p className="next-puzzle">
       <span className="next-puzzle-label">Next puzzle in</span>{' '}
       <strong className="next-puzzle-time">{formatCountdown(remaining)}</strong>{' '}
-      <span className="muted">— midnight{zone ? ` ${zone}` : ''}</span>
+      <span className="muted">— at {formatClock(next)}</span>
     </p>
   )
 }

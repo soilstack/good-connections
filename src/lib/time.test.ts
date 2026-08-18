@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatCountdown, nextMidnightMs, zoneLabel } from './time'
+import { formatClock, formatCountdown, nextMidnightMs } from './time'
 
 /** Wall-clock reading of an instant in a zone, as "YYYY-MM-DD HH:mm". */
 function wallClock(timezone: string, atMs: number): string {
@@ -80,11 +80,43 @@ describe('formatCountdown', () => {
   })
 })
 
-describe('zoneLabel', () => {
-  it('names the zone', () => {
-    expect(zoneLabel('Asia/Singapore', Date.parse('2026-08-18T00:00:00Z'))).toBe('GMT+8')
+describe('formatClock', () => {
+  /** An instant at a given time on the runner's own clock, so these hold in any TZ. */
+  const localAt = (h: number, m = 0) => {
+    const d = new Date()
+    d.setHours(h, m, 0, 0)
+    return d.getTime()
+  }
+
+  it('names the two hours people have words for', () => {
+    expect(formatClock(localAt(0))).toBe('midnight')
+    expect(formatClock(localAt(12))).toBe('noon')
   })
-  it('returns null for an unknown zone', () => {
-    expect(zoneLabel('Mars/Olympus_Mons', Date.now())).toBeNull()
+  it('drops :00 on the hour', () => {
+    expect(formatClock(localAt(15))).toBe('3 pm')
+    expect(formatClock(localAt(9))).toBe('9 am')
+  })
+  it('keeps the minutes when there are any', () => {
+    expect(formatClock(localAt(15, 30))).toBe('3:30 pm')
+    expect(formatClock(localAt(0, 5))).toBe('12:05 am')
+    expect(formatClock(localAt(12, 1))).toBe('12:01 pm')
+  })
+})
+
+describe('a league whose day rolls at 3pm Singapore time', () => {
+  // Etc/GMT+7 is UTC-7 (POSIX inverts the sign) and never observes DST, so its
+  // local midnight is 15:00 in Singapore all year — which is how a non-midnight
+  // rollover is configured without a schema change.
+  it('rolls over at 15:00 SGT in both January and July', () => {
+    const inSGT = (ms: number) =>
+      new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Singapore',
+        hourCycle: 'h23',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(ms)
+    for (const iso of ['2026-01-15T00:00:00Z', '2026-07-15T00:00:00Z']) {
+      expect(inSGT(nextMidnightMs('Etc/GMT+7', Date.parse(iso))!)).toBe('15:00')
+    }
   })
 })

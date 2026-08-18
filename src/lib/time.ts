@@ -79,15 +79,22 @@ export function formatCountdown(ms: number): string {
   return `${s}s`
 }
 
-/** Short zone label for a given instant, e.g. "GMT+8" or "BST". */
-export function zoneLabel(timezone: string, atMs: number): string | null {
-  try {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: timezone,
-      timeZoneName: 'short',
-    }).formatToParts(atMs)
-    return parts.find((p) => p.type === 'timeZoneName')?.value ?? null
-  } catch {
-    return null
-  }
+/**
+ * An instant on the VIEWER's own clock, e.g. "3 pm", "9:30 am", "midnight".
+ *
+ * Deliberately the viewer's zone and not the league's. A league whose day rolls
+ * at 3pm Singapore time is configured as a zone seven hours behind UTC, so
+ * naming its zone would tell a Singapore player their puzzle arrives at
+ * "midnight GMT-7" — true, and useless. What they want to know is when it lands
+ * for them.
+ */
+export function formatClock(atMs: number): string {
+  const d = new Date(atMs)
+  const h = d.getHours()
+  const m = d.getMinutes()
+  if (m === 0 && h === 0) return 'midnight'
+  if (m === 0 && h === 12) return 'noon'
+  const h12 = h % 12 === 0 ? 12 : h % 12
+  const meridiem = h < 12 ? 'am' : 'pm'
+  return m === 0 ? `${h12} ${meridiem}` : `${h12}:${m.toString().padStart(2, '0')} ${meridiem}`
 }
