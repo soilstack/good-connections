@@ -430,6 +430,85 @@ export function standings(
   return rows
 }
 
+/** A single game that holds some superlative, identified by its record id. */
+export interface Superlative {
+  gameId: string
+  value: number
+}
+
+/**
+ * One player's history in a league, for their performance page.
+ *
+ * The means cover COMPLETED games only, for the reason given on
+ * {@link aggregateSolveTimes}: an abandoned game is shorter, so counting it
+ * would make giving up look like improvement. Giving up is reported on its own
+ * as `gamesGivenUp`. The superlatives are over every game played — a disastrous
+ * game still counts as your worst even if you walked away from it, except
+ * `fastest`, which can only come from a game that actually finished.
+ */
+export interface PlayerSummary {
+  gamesPlayed: number
+  gamesCompleted: number
+  gamesGivenUp: number
+  completionRate: number
+  meanTotalTimeMs: number | null
+  meanTimeToFirstSetMs: number | null
+  meanErrorRate: number | null
+  fastest: Superlative | null
+  mostErrors: Superlative | null
+  longestStall: Superlative | null
+  mostFalseDones: Superlative | null
+}
+
+export function summarisePlayer(
+  records: readonly GameRecord[],
+  context: GameContext,
+  mode: Mode,
+): PlayerSummary {
+  const games = select(records, context, mode).map((r) => ({ id: r.id, stats: deriveStats(r) }))
+  const completed = games.filter((g) => g.stats.completed)
+
+  // Strict >, so the earliest game wins a tie and the result is deterministic.
+  const best = (
+    pick: (g: (typeof games)[number]) => number,
+    from: typeof games = games,
+  ): Superlative | null => {
+    let top: Superlative | null = null
+    for (const g of from) {
+      const value = pick(g)
+      if (value > 0 && (top === null || value > top.value)) top = { gameId: g.id, value }
+    }
+    return top
+  }
+
+  let fastest: Superlative | null = null
+  for (const g of completed) {
+    const t = g.stats.totalTimeMs
+    if (t !== null && (fastest === null || t < fastest.value)) fastest = { gameId: g.id, value: t }
+  }
+
+  const firstSetTimes = completed
+    .map((g) => g.stats.timeToFirstSetMs)
+    .filter((t): t is number => t !== null)
+
+  return {
+    gamesPlayed: games.length,
+    gamesCompleted: completed.length,
+    gamesGivenUp: games.filter((g) => g.stats.abandoned).length,
+    completionRate: completionRate(records, context, mode),
+    meanTotalTimeMs:
+      completed.length > 0 ? mean(completed.map((g) => g.stats.totalTimeMs ?? 0)) : null,
+    meanTimeToFirstSetMs: firstSetTimes.length > 0 ? mean(firstSetTimes) : null,
+    meanErrorRate: completed.length > 0 ? mean(completed.map((g) => g.stats.errorRate)) : null,
+    fastest,
+    mostErrors: best((g) => g.stats.errorCount),
+    longestStall: best((g) =>
+      g.stats.setIntervalsMs.length > 0 ? Math.max(...g.stats.setIntervalsMs) : 0,
+    ),
+    mostFalseDones: best((g) => g.stats.falseDones),
+  }
+}
+
 function mean(xs: readonly number[]): number {
   return xs.reduce((a, b) => a + b, 0) / xs.length
 }

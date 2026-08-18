@@ -6,6 +6,7 @@ import {
   aggregateSolveTimes,
   completionRate,
   standings,
+  summarisePlayer,
   type GameRecord,
   type TelemetryEvent,
 } from './telemetry'
@@ -266,6 +267,117 @@ describe('aggregation excludes abandoned games from solve times', () => {
       },
     ]
     expect(completionRate(records, 'league', 'A')).toBeCloseTo(0.5)
+  })
+})
+
+describe('summarisePlayer', () => {
+  const abandoned = (id: string, opts: { validAt: number[]; endAt: number; invalid?: number }): GameRecord => {
+    const events: TelemetryEvent[] = opts.validAt.map((t) => ({
+      t_ms: t,
+      type: 'set_valid' as const,
+      payload: { cards: [0, 1, 2] as [number, number, number], setIndex: 0 },
+    }))
+    for (let i = 0; i < (opts.invalid ?? 0); i++) {
+      events.push({ t_ms: 1, type: 'set_invalid', payload: { cards: [0, 1, 2] } })
+    }
+    events.push({ t_ms: opts.endAt, type: 'game_end', payload: { reason: 'abandoned' } })
+    events.sort((a, b) => a.t_ms - b.t_ms)
+    return { id, player: 'p', context: 'league', mode: 'A', totalSets: 6, startedAtMs: 0, events }
+  }
+  const done = (id: string, o: { validAt: number[]; endAt: number; invalidAt?: number[] }) =>
+    completedGame({ id, player: 'p', context: 'league', mode: 'A', totalSets: 6, ...o })
+
+  it('counts give-ups without letting them into the averages', () => {
+    const s = summarisePlayer(
+      [
+        done('a', { validAt: [10_000, 40_000], endAt: 100_000 }),
+        done('b', { validAt: [20_000, 60_000], endAt: 200_000 }),
+        abandoned('c', { validAt: [5_000], endAt: 8_000 }),
+      ],
+      'league',
+      'A',
+    )
+    expect(s.gamesPlayed).toBe(3)
+    expect(s.gamesCompleted).toBe(2)
+    expect(s.gamesGivenUp).toBe(1)
+    expect(s.completionRate).toBeCloseTo(2 / 3)
+    expect(s.meanTotalTimeMs).toBe(150_000) // the 8s give-up is not in here
+    expect(s.meanTimeToFirstSetMs).toBe(15_000) // nor its 5s first set
+  })
+
+  it('takes the fastest only from games that finished', () => {
+    const s = summarisePlayer(
+      [
+        done('a', { validAt: [1], endAt: 100_000 }),
+        abandoned('quit', { validAt: [1], endAt: 900 }), // "fastest" if we were careless
+      ],
+      'league',
+      'A',
+    )
+    expect(s.fastest).toEqual({ gameId: 'a', value: 100_000 })
+  })
+
+  it('draws the worsts from every game, given up or not', () => {
+    const s = summarisePlayer(
+      [
+        done('a', { validAt: [10_000, 20_000], endAt: 30_000, invalidAt: [1_000] }),
+        abandoned('c', { validAt: [1_000, 200_000], endAt: 210_000, invalid: 9 }),
+      ],
+      'league',
+      'A',
+    )
+    expect(s.mostErrors).toEqual({ gameId: 'c', value: 9 })
+    expect(s.longestStall).toEqual({ gameId: 'c', value: 199_000 })
+  })
+
+  it('is empty, not NaN, for a player with no games', () => {
+    const s = summarisePlayer([], 'league', 'A')
+    expect(s).toMatchObject({
+      gamesPlayed: 0,
+      gamesCompleted: 0,
+      gamesGivenUp: 0,
+      completionRate: 0,
+      meanTotalTimeMs: null,
+      meanTimeToFirstSetMs: null,
+      meanErrorRate: null,
+      fastest: null,
+      mostErrors: null,
+      longestStall: null,
+      mostFalseDones: null,
+    })
+  })
+
+  it('ignores practice games and other modes', () => {
+    const records: GameRecord[] = [
+      done('L', { validAt: [1], endAt: 100_000 }),
+      completedGame({ id: 'P', player: 'p', context: 'practice', mode: 'A', totalSets: 6, validAt: [1], endAt: 1_000 }),
+      completedGame({ id: 'B', player: 'p', context: 'league', mode: 'B', totalSets: 3, validAt: [1], endAt: 2_000 }),
+    ]
+    const s = summarisePlayer(records, 'league', 'A')
+    expect(s.gamesPlayed).toBe(1)
+    expect(s.meanTotalTimeMs).toBe(100_000)
+  })
+
+  it('reports false dones as a superlative', () => {
+    const withDones = (id: string, falseDones: number): GameRecord => ({
+      id,
+      player: 'p',
+      context: 'league',
+      mode: 'C',
+      totalSets: 4,
+      startedAtMs: 0,
+      events: [
+        ...Array.from({ length: falseDones }, (_, i) => ({
+          t_ms: 1_000 * (i + 1),
+          type: 'done_attempt' as const,
+          payload: { complete: false, penaltyMs: 5_000 },
+        })),
+        { t_ms: 60_000, type: 'done_attempt', payload: { complete: true, penaltyMs: 0 } },
+        { t_ms: 60_000, type: 'game_end', payload: { reason: 'completed' } },
+      ],
+    })
+    const s = summarisePlayer([withDones('x', 1), withDones('y', 3)], 'league', 'C')
+    expect(s.mostFalseDones).toEqual({ gameId: 'y', value: 3 })
   })
 })
 
