@@ -775,6 +775,15 @@ body {
   margin: 0 0 4px;
   font-size: 30px;
 }
+.next-puzzle {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.next-puzzle-time {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

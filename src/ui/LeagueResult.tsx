@@ -6,11 +6,14 @@ import { formatTime } from './format'
 import { SolveTimelineView } from './SolveTimelineView'
 import { LeagueStatsView } from './LeagueStatsView'
 import { SameBoardCompare } from './SameBoardCompare'
+import { NextPuzzle } from './NextPuzzle'
 
 interface LeagueResultProps {
   leagueId: string
   leagueName: string
   puzzleDate: string
+  /** IANA zone the league's day rolls over in. */
+  timezone: string
   mode: Mode
   userId: string
   /** The just-finished game's stats, or omitted when the puzzle was already played earlier. */
@@ -32,6 +35,7 @@ export function LeagueResult({
   leagueId,
   leagueName,
   puzzleDate,
+  timezone,
   mode,
   userId,
   stats,
@@ -64,6 +68,7 @@ export function LeagueResult({
           {leagueName} · {puzzleDate}
           {!stats && ' · you’ve already played today'}
         </p>
+        <NextPuzzle timezone={timezone} />
       </header>
 
       {stats && (

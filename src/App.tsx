@@ -120,6 +120,7 @@ export function App() {
           leagueId={league.league.id}
           leagueName={league.league.name}
           puzzleDate={league.puzzleDate}
+          timezone={league.league.timezone}
           mode={league.league.mode}
           userId={league.userId}
           onExit={exitLeague}
@@ -134,6 +135,7 @@ export function App() {
           leagueId: league.league.id,
           leagueName: league.league.name,
           puzzleDate: league.puzzle.puzzleDate,
+          timezone: league.league.timezone,
           userId: league.userId,
           penaltyBaseMs: league.league.penalty_base_ms,
         }}

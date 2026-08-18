@@ -23,6 +23,8 @@ export type GameSession =
       leagueId: string
       leagueName: string
       puzzleDate: string
+      /** IANA zone the league's day rolls over in. */
+      timezone: string
       userId: string
       penaltyBaseMs: number
     }
@@ -96,6 +98,7 @@ export function Game({ board, session, onExit, onPlayAgain }: GameProps) {
           leagueId={session.leagueId}
           leagueName={session.leagueName}
           puzzleDate={session.puzzleDate}
+          timezone={session.timezone}
           mode={board.mode}
           userId={session.userId}
           stats={game.stats}
