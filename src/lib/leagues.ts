@@ -1,6 +1,13 @@
 import { supabase } from './supabase'
 import { generateBoard, mulberry32, type Board, type Mode } from '../game/board'
-import { deriveStats, type GameRecord, type GameStats, type TelemetryEvent } from '../game/telemetry'
+import {
+  deriveStats,
+  summarisePlayer,
+  type GameRecord,
+  type GameStats,
+  type PlayerSummary,
+  type TelemetryEvent,
+} from '../game/telemetry'
 
 /**
  * League data layer over Supabase. Board generation and stats stay in the pure
@@ -282,6 +289,89 @@ export async function getLeagueStats(leagueId: string, mode: Mode): Promise<Leag
   ].filter((n): n is NotableRecord => n !== null)
 
   return { mode, topSolves, fastestBySetCount, members, notables }
+}
+
+// --- one player's history (the performance page) ---------------------------
+
+export interface PlayerGame {
+  /** game_records row id; ties a summary superlative back to its game. */
+  id: string
+  puzzleDate: string
+  /** Sets on that day's board. */
+  totalSets: number
+  stats: GameStats
+  events: TelemetryEvent[]
+}
+
+export interface PlayerHistory {
+  userId: string
+  displayName: string
+  /** Newest puzzle date first. */
+  games: PlayerGame[]
+  summary: PlayerSummary
+}
+
+/**
+ * Every league game one member has played, plus the summary derived from them.
+ * Any member may look at any other member — RLS already allows reading the
+ * league's records, and nothing here is a secret once a day has been played.
+ */
+export async function getPlayerHistory(
+  leagueId: string,
+  userId: string,
+  mode: Mode,
+): Promise<PlayerHistory> {
+  const { data, error } = await supabase
+    .from('game_records')
+    .select('id, puzzle_date, total_sets, mode, started_at, events')
+    .eq('context', 'league')
+    .eq('league_id', leagueId)
+    .eq('user_id', userId)
+  if (error) throw new Error(error.message)
+  const rows = (data ?? []) as {
+    id: string
+    puzzle_date: string
+    total_sets: number
+    mode: Mode
+    started_at: string
+    events: TelemetryEvent[]
+  }[]
+
+  const { data: prof } = await supabase
+    .from('profiles')
+    .select('display_name')
+    .eq('id', userId)
+    .maybeSingle()
+
+  // Newest first, once — the page reads in that order and so do the
+  // superlatives, whose ties then fall to the more recent game whatever order
+  // the rows arrived in.
+  rows.sort((a, b) => b.puzzle_date.localeCompare(a.puzzle_date))
+
+  const records: GameRecord[] = rows.map((r) => ({
+    id: r.id,
+    player: userId,
+    context: 'league',
+    mode: r.mode,
+    totalSets: r.total_sets,
+    startedAtMs: Date.parse(r.started_at),
+    events: r.events,
+  }))
+
+  const games: PlayerGame[] = rows.map((r, i) => ({
+    id: r.id,
+    puzzleDate: r.puzzle_date,
+    totalSets: r.total_sets,
+    stats: deriveStats(records[i]!),
+    events: r.events,
+  }))
+
+  return {
+    userId,
+    displayName: (prof as { display_name: string } | null)?.display_name ?? '—',
+    games,
+    summary: summarisePlayer(records, 'league', mode),
+  }
 }
 
 /** Has the signed-in user already submitted a game for this league + date? */

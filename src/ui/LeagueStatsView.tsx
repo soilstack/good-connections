@@ -7,9 +7,11 @@ interface Props {
   leagueId: string
   mode: Mode
   currentUserId: string
+  /** Open a member's performance page. */
+  onSelectMember: (userId: string) => void
 }
 
-export function LeagueStatsView({ leagueId, mode, currentUserId }: Props) {
+export function LeagueStatsView({ leagueId, mode, currentUserId, onSelectMember }: Props) {
   const [stats, setStats] = useState<LeagueStats | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -68,19 +70,26 @@ export function LeagueStatsView({ leagueId, mode, currentUserId }: Props) {
       <h2 className="section-label section-label-gap">Members</h2>
       <ol className="member-list">
         {stats.members.map((m) => (
-          <li key={m.userId} className={`member-row${m.userId === currentUserId ? ' is-you' : ''}`}>
-            <span className="member-name">
-              {m.displayName}
-              {m.userId === currentUserId ? ' (you)' : ''}
-            </span>
-            <span className="member-detail">
-              {m.bestTimeMs === null ? 'no solve yet' : `best ${formatTime(m.bestTimeMs)}`}
-              {` · ${m.gamesCompleted}/${m.gamesPlayed} solved · ${Math.round(m.completionRate * 100)}%`}
-              {m.currentStreak > 0 ? ` · streak ${m.currentStreak}` : ''}
-            </span>
+          <li key={m.userId}>
+            <button
+              type="button"
+              className={`member-row is-tappable${m.userId === currentUserId ? ' is-you' : ''}`}
+              onClick={() => onSelectMember(m.userId)}
+            >
+              <span className="member-name">
+                {m.displayName}
+                {m.userId === currentUserId ? ' (you)' : ''}
+              </span>
+              <span className="member-detail">
+                {m.bestTimeMs === null ? 'no solve yet' : `best ${formatTime(m.bestTimeMs)}`}
+                {` · ${m.gamesCompleted}/${m.gamesPlayed} solved · ${Math.round(m.completionRate * 100)}%`}
+                {m.currentStreak > 0 ? ` · streak ${m.currentStreak}` : ''}
+              </span>
+            </button>
           </li>
         ))}
       </ol>
+      <p className="muted timeline-hint">Tap a member to see how they’re going.</p>
 
       {stats.notables.length > 0 && (
         <>

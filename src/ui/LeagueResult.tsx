@@ -7,6 +7,8 @@ import { SolveTimelineView } from './SolveTimelineView'
 import { LeagueStatsView } from './LeagueStatsView'
 import { SameBoardCompare } from './SameBoardCompare'
 import { NextPuzzle } from './NextPuzzle'
+import { Stat } from './Stat'
+import { PlayerPerformance } from './PlayerPerformance'
 
 interface LeagueResultProps {
   leagueId: string
@@ -20,15 +22,6 @@ interface LeagueResultProps {
   stats?: GameStats | null
   endReason?: 'completed' | 'abandoned' | null
   onExit: () => void
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="stat">
-      <span className="stat-value">{value}</span>
-      <span className="stat-label">{label}</span>
-    </div>
-  )
 }
 
 export function LeagueResult({
@@ -45,6 +38,8 @@ export function LeagueResult({
   const [rows, setRows] = useState<LeaderboardRow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<string | null>(null)
+  // Non-null = the member whose performance page has taken over the screen.
+  const [viewing, setViewing] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -59,6 +54,19 @@ export function LeagueResult({
       active = false
     }
   }, [leagueId, puzzleDate])
+
+  if (viewing !== null) {
+    return (
+      <PlayerPerformance
+        leagueId={leagueId}
+        leagueName={leagueName}
+        mode={mode}
+        userId={viewing}
+        currentUserId={userId}
+        onBack={() => setViewing(null)}
+      />
+    )
+  }
 
   return (
     <div className="summary">
@@ -123,7 +131,12 @@ export function LeagueResult({
 
       {rows && <SameBoardCompare rows={rows} currentUserId={userId} />}
 
-      <LeagueStatsView leagueId={leagueId} mode={mode} currentUserId={userId} />
+      <LeagueStatsView
+        leagueId={leagueId}
+        mode={mode}
+        currentUserId={userId}
+        onSelectMember={setViewing}
+      />
 
       <div className="summary-actions">
         <button type="button" className="btn btn-primary" onClick={onExit}>

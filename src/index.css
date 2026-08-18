@@ -296,6 +296,10 @@ body {
   text-align: left;
   cursor: pointer;
 }
+/* The history list has no rank column — two columns, date then result. */
+.leader-row.no-rank {
+  grid-template-columns: 1fr auto;
+}
 .leader-item.is-you .leader-row {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px rgba(79, 140, 255, 0.35);
@@ -395,6 +399,20 @@ body {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px rgba(79, 140, 255, 0.35);
 }
+/* A member row that opens their performance page. Comfortable to hit on a
+   phone, and it must not inherit the button defaults. */
+.member-row.is-tappable {
+  width: 100%;
+  min-height: 52px;
+  align-items: flex-start;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.member-row.is-tappable:active {
+  background: var(--surface-2);
+}
 .member-name {
   font-weight: 700;
 }
@@ -470,6 +488,28 @@ body {
   display: inline-block;
 }
 .pace-caption {
+  font-size: 12px;
+  margin-top: 8px;
+}
+/* ---- per-player all-games pace chart ---- */
+.ppc-line {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.ppc-line.is-recent {
+  stroke: var(--bad);
+  stroke-width: 2.5;
+}
+.ppc-line.is-abandoned {
+  stroke-dasharray: 4 3;
+}
+.ppc-dot.is-recent {
+  fill: var(--bad);
+}
+.stat-note {
   font-size: 12px;
   margin-top: 8px;
 }
