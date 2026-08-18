@@ -334,6 +334,58 @@ export function deriveTimeline(record: GameRecord): SolveTimeline {
   return { steps, trailingFalse: falseSince, trailingDuplicates: dupSince, endMs, completed }
 }
 
+/** One set a player found, picked out of their timeline. */
+export interface SetHighlight {
+  /** Index into the board's solution — the same number for every player, since
+   * everyone in a league slot plays the identical board. */
+  setIndex: number
+  /** Which find this was for this player: 1 = their first. */
+  ordinal: number
+  /** Cumulative time when they found it. */
+  atMs: number
+  /** Gap since their previous set (since reveal, for the first). */
+  sincePrevMs: number
+}
+
+export interface MatchHighlights {
+  /**
+   * The set that cost the most: the longest gap between two consecutive finds.
+   * The opening gap is excluded — "how long to get started" is its own
+   * statistic, and counting it would name the first set as hardest in nearly
+   * every game. Null for a player who found fewer than two sets.
+   */
+  hardest: SetHighlight | null
+  /** The last set they found; null if they found none. */
+  last: SetHighlight | null
+}
+
+/**
+ * The two sets worth reporting for one player on one board. Identity is the
+ * board-relative `setIndex` only — never the cards — so this can be shown to
+ * everyone who played, including someone who gave up, without handing them a
+ * solution to pass on.
+ */
+export function matchHighlights(events: readonly TelemetryEvent[]): MatchHighlights {
+  const { steps } = deriveTimeline({ events } as GameRecord)
+  const at = (i: number): SetHighlight => ({
+    setIndex: steps[i]!.setIndex,
+    ordinal: i + 1,
+    atMs: steps[i]!.atMs,
+    sincePrevMs: steps[i]!.sincePrevMs,
+  })
+
+  let hardestAt: number | null = null
+  // From 1: index 0's gap is the opening, which is not a stall between sets.
+  for (let i = 1; i < steps.length; i++) {
+    if (hardestAt === null || steps[i]!.sincePrevMs > steps[hardestAt]!.sincePrevMs) hardestAt = i
+  }
+
+  return {
+    hardest: hardestAt === null ? null : at(hardestAt),
+    last: steps.length > 0 ? at(steps.length - 1) : null,
+  }
+}
+
 /**
  * Records matching a context and mode. The obvious place for a silent bug is a
  * query that forgets this filter, so `context` and `mode` are required and there

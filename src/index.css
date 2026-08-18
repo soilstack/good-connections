@@ -513,6 +513,14 @@ body {
   font-size: 12px;
   margin-top: 8px;
 }
+.match-note {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--text);
+}
+.match-note b {
+  font-variant-numeric: tabular-nums;
+}
 .pc-wrong-txt {
   color: var(--bad);
 }

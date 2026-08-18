@@ -5,6 +5,7 @@ import {
   deriveTimeline,
   aggregateSolveTimes,
   completionRate,
+  matchHighlights,
   standings,
   summarisePlayer,
   type GameRecord,
@@ -267,6 +268,39 @@ describe('aggregation excludes abandoned games from solve times', () => {
       },
     ]
     expect(completionRate(records, 'league', 'A')).toBeCloseTo(0.5)
+  })
+})
+
+describe('matchHighlights', () => {
+  const found = (t: number, setIndex: number): TelemetryEvent => ({
+    t_ms: t,
+    type: 'set_valid',
+    payload: { cards: [0, 1, 2], setIndex },
+  })
+
+  it('names the longest stall between sets, not the slow start', () => {
+    // 40s to get going, then 10s, then a 90s wall, then 5s.
+    const h = matchHighlights([found(40_000, 2), found(50_000, 0), found(140_000, 5), found(145_000, 3)])
+    expect(h.hardest).toEqual({ setIndex: 5, ordinal: 3, atMs: 140_000, sincePrevMs: 90_000 })
+  })
+
+  it('reports the last set found, whether or not the game finished', () => {
+    const events = [found(10_000, 1), found(25_000, 4)]
+    expect(matchHighlights([...events, { t_ms: 30_000, type: 'game_end', payload: { reason: 'abandoned' } }]).last)
+      .toEqual({ setIndex: 4, ordinal: 2, atMs: 25_000, sincePrevMs: 15_000 })
+  })
+
+  it('has no hardest set until there are two finds to span', () => {
+    expect(matchHighlights([found(10_000, 1)])).toEqual({
+      hardest: null,
+      last: { setIndex: 1, ordinal: 1, atMs: 10_000, sincePrevMs: 10_000 },
+    })
+    expect(matchHighlights([])).toEqual({ hardest: null, last: null })
+  })
+
+  it('keeps the earlier set when two gaps tie', () => {
+    const h = matchHighlights([found(10_000, 0), found(70_000, 1), found(130_000, 2)])
+    expect(h.hardest?.setIndex).toBe(1)
   })
 })
 

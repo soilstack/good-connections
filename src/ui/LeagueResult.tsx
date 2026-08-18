@@ -6,6 +6,7 @@ import { formatTime } from './format'
 import { SolveTimelineView } from './SolveTimelineView'
 import { LeagueStatsView } from './LeagueStatsView'
 import { SameBoardCompare } from './SameBoardCompare'
+import { MatchSummary } from './MatchSummary'
 import { NextPuzzle } from './NextPuzzle'
 import { Stat } from './Stat'
 import { PlayerPerformance } from './PlayerPerformance'
@@ -128,6 +129,8 @@ export function LeagueResult({
           </>
         )}
       </section>
+
+      {rows && rows.length > 0 && <MatchSummary rows={rows} currentUserId={userId} />}
 
       {rows && <SameBoardCompare rows={rows} currentUserId={userId} />}
 
