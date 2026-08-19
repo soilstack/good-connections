@@ -103,6 +103,43 @@ describe('formatClock', () => {
   })
 })
 
+describe('a league whose day rolls at 6pm US Eastern Standard Time', () => {
+  // CORSICA. Etc/GMT-1 is UTC+1 (POSIX inverts the sign) and never observes
+  // DST, so its local midnight is a fixed 23:00 UTC — which is 18:00 EST.
+  const inNY = (ms: number) =>
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/New_York',
+      hourCycle: 'h23',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(ms)
+
+  it('rolls over at 18:00 in New York while Eastern is on standard time', () => {
+    expect(inNY(nextMidnightMs('Etc/GMT-1', Date.parse('2026-01-15T00:00:00Z'))!)).toBe('18:00')
+  })
+
+  it('is the same instant in July, which Eastern reads as 19:00 on DST', () => {
+    // Not a bug: the league is pinned to a fixed offset so the mark stays a
+    // stable instant season-round. Eastern is what moves, by an hour, twice a
+    // year. Holding 6pm on the Eastern wall clock would need a rollover-hour
+    // column in `leagues`, not just a timezone.
+    expect(inNY(nextMidnightMs('Etc/GMT-1', Date.parse('2026-07-15T00:00:00Z'))!)).toBe('19:00')
+  })
+
+  it('is 23:00 UTC in both January and July', () => {
+    const inUTC = (ms: number) =>
+      new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'UTC',
+        hourCycle: 'h23',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(ms)
+    for (const iso of ['2026-01-15T00:00:00Z', '2026-07-15T00:00:00Z']) {
+      expect(inUTC(nextMidnightMs('Etc/GMT-1', Date.parse(iso))!)).toBe('23:00')
+    }
+  })
+})
+
 describe('a league whose day rolls at 3pm Singapore time', () => {
   // Etc/GMT+7 is UTC-7 (POSIX inverts the sign) and never observes DST, so its
   // local midnight is 15:00 in Singapore all year — which is how a non-midnight
