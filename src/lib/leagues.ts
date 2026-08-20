@@ -70,6 +70,27 @@ export async function joinLeague(code: string): Promise<string> {
   return data as string
 }
 
+/**
+ * Every date this league has games on record for, newest first.
+ *
+ * RLS already lets a member read their league's records, so this needs no new
+ * policy. It returns the raw list INCLUDING today — deciding what a given
+ * member may actually look at is {@link viewableDates}'s job, kept separate so
+ * the "today is not safe until you've played it" rule has one home.
+ */
+export async function getLeagueDates(leagueId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('game_records')
+    .select('puzzle_date')
+    .eq('context', 'league')
+    .eq('league_id', leagueId)
+  if (error) throw new Error(error.message)
+  const dates = ((data ?? []) as { puzzle_date: string }[])
+    .map((r) => r.puzzle_date)
+    .filter((d): d is string => typeof d === 'string')
+  return [...new Set(dates)].sort((a, b) => b.localeCompare(a))
+}
+
 export interface TodayPuzzle {
   seed: number
   puzzleDate: string // YYYY-MM-DD, the league's local date
@@ -85,6 +106,25 @@ export async function getTodayPuzzle(leagueId: string): Promise<TodayPuzzle> {
   const seed = Number(row.seed)
   const board = generateBoard(row.mode, mulberry32(seed))
   return { seed, puzzleDate: row.puzzle_date, mode: row.mode, board }
+}
+
+/**
+ * Rebuild the board for a league day that is already over.
+ *
+ * Returns null when the day cannot be redrawn — no `past_puzzle()` function
+ * installed, nobody ever played that day so no seed was issued, or the server
+ * refused because the date is not actually finished. Every caller treats null
+ * as "no cards for this day" and still shows the rest of the summary, so this
+ * never has to be the difference between a page and an error.
+ */
+export async function getPastPuzzleBoard(leagueId: string, puzzleDate: string): Promise<Board | null> {
+  const { data, error } = await supabase.rpc('past_puzzle', {
+    p_league: leagueId,
+    p_date: puzzleDate,
+  })
+  if (error || data === null || data === undefined) return null
+  const row = data as { seed: number; mode: Mode }
+  return generateBoard(row.mode, mulberry32(Number(row.seed)))
 }
 
 /** Post a completed/abandoned league game's event log to the server. */

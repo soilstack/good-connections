@@ -228,24 +228,42 @@ body {
   flex-direction: column;
   gap: 10px;
 }
+/* The card is a container, not a button: an unplayed league carries a second
+   action ("Past results"), and a button inside a button is invalid HTML. */
 .league-card {
-  text-align: left;
   display: flex;
-  flex-direction: column;
-  gap: 3px;
+  align-items: center;
+  gap: 8px;
   background: var(--bg);
   border: 1px solid var(--card-border);
   border-radius: 12px;
   padding: 14px 16px;
   color: var(--text);
+  transition: border-color 0.15s ease;
+}
+.league-card-main {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
   cursor: pointer;
   font: inherit;
-  transition: border-color 0.15s ease, transform 0.1s ease;
+  transition: transform 0.1s ease;
+}
+.league-card-alt {
+  flex: none;
+  white-space: nowrap;
 }
 .league-card:hover {
   border-color: var(--accent);
 }
-.league-card:active {
+.league-card-main:active {
   transform: translateY(1px);
 }
 /* A league with a game waiting is lit; one you've already played today recedes.
@@ -957,6 +975,28 @@ body {
   padding: 10px;
   max-width: 340px;
 }
+/* ---- day picker on the results page ---- */
+.day-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.day-select {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  color: var(--text);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  padding: 9px 10px;
+}
+.day-nav .btn[disabled] {
+  opacity: 0.35;
+}
+
 /* ---- Mode A solve-time table ---- */
 /* Six columns is wide for a phone, so the table scrolls inside its own box
    rather than making the whole page scroll sideways. */

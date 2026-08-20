@@ -68,9 +68,12 @@ export function MatchSummary({
   currentUserId,
   board,
   reveal = null,
+  historic = false,
 }: {
   rows: LeaderboardRow[]
   currentUserId: string
+  /** A finished day rather than today's live one. */
+  historic?: boolean
   /** Today's board. Only needed to draw the sets once they may be revealed. */
   board?: Board | null
   /** Caller's verdict from {@link canRevealSets}; null keeps the cards hidden. */
@@ -98,7 +101,7 @@ export function MatchSummary({
 
   return (
     <section className="league-stats">
-      <h2 className="section-label">Today’s match</h2>
+      <h2 className="section-label">{historic ? 'The match' : 'Today’s match'}</h2>
 
       {(wall || lastToFall) && (
         <p className="match-note">
@@ -162,11 +165,16 @@ export function MatchSummary({
       <p className="muted timeline-hint">
         Sets are lettered by their place in the board’s solution — the same letter is the same set
         for everyone.
-        {reveal && board
-          ? reveal === 'all-played'
-            ? ' Everyone has played, so here they are.'
-            : ' The day is over, so here they are.'
-          : ' The cards stay hidden while the day is live.'}
+        {/* Three states, not two: the gate can be open while the board is
+            still unavailable (a finished day whose seed cannot be fetched),
+            and saying "hidden while the day is live" there would be a lie. */}
+        {!reveal
+          ? ' The cards stay hidden while the day is live.'
+          : board
+            ? reveal === 'all-played'
+              ? ' Everyone has played, so here they are.'
+              : ' The day is over, so here they are.'
+            : ''}
       </p>
     </section>
   )

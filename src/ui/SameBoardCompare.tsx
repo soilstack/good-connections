@@ -44,16 +44,24 @@ export function SameBoardCompare({
   rows,
   currentUserId,
   roster,
+  historic = false,
 }: {
   rows: LeaderboardRow[]
   currentUserId: string
   /** League members in join order; null when the roster could not be read. */
   roster?: string[] | null
+  /** A finished day rather than today's live one. */
+  historic?: boolean
 }) {
   const [detail, setDetail] = useState<Detail | null>(null)
 
+  // On a live day the chart waits until the viewer has finished, so it can
+  // never show them how others paced a board they are still playing. On a
+  // finished day that is moot — the board is over, and someone who missed it
+  // entirely should still be able to look.
   const me = rows.find((r) => r.userId === currentUserId)
-  if (!me || !me.stats.completed || rows.length < 2) return null
+  if (rows.length < 2) return null
+  if (!historic && (!me || !me.stats.completed)) return null
 
   const ordered = [...rows].sort((a, b) => a.userId.localeCompare(b.userId))
   const colours = playerColours(
@@ -97,7 +105,7 @@ export function SameBoardCompare({
 
   return (
     <section className="league-stats">
-      <h2 className="section-label">Today’s board — pace</h2>
+      <h2 className="section-label">{historic ? 'The board — pace' : 'Today’s board — pace'}</h2>
       <svg
         className="pace-chart"
         viewBox={`0 0 ${W} ${H}`}

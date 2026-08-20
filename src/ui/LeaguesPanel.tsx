@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { getMyLeagues, getPlayedToday, joinLeague, type League } from '../lib/leagues'
 
 interface LeaguesPanelProps {
-  onSelectLeague: (league: League) => void
+  onSelectLeague: (league: League, intent?: 'play' | 'standings') => void
 }
 
 export function LeaguesPanel({ onSelectLeague }: LeaguesPanelProps) {
@@ -58,23 +58,38 @@ export function LeaguesPanel({ onSelectLeague }: LeaguesPanelProps) {
           {leagues.map((l) => {
             const done = played[l.id] === true
             return (
-              <button
-                type="button"
-                key={l.id}
-                className={`league-card ${done ? 'is-played' : 'is-fresh'}`}
-                onClick={() => onSelectLeague(l)}
-              >
-                <span className="league-name">
-                  {l.name}
-                  {/* A dot as well as the colour: the card colours already
-                      carry meaning elsewhere in this app, and colour alone is
-                      a poor sole signal. */}
-                  {!done && <span className="league-dot" aria-hidden="true" />}
-                </span>
-                <span className="league-meta">
-                  Mode {l.mode} · {done ? 'played today · see the results →' : 'new puzzle ready →'}
-                </span>
-              </button>
+              <div key={l.id} className={`league-card ${done ? 'is-played' : 'is-fresh'}`}>
+                <button
+                  type="button"
+                  className="league-card-main"
+                  onClick={() => onSelectLeague(l, 'play')}
+                >
+                  <span className="league-name">
+                    {l.name}
+                    {/* A dot as well as the colour: the card colours already
+                        carry meaning elsewhere in this app, and colour alone is
+                        a poor sole signal. */}
+                    {!done && <span className="league-dot" aria-hidden="true" />}
+                  </span>
+                  <span className="league-meta">
+                    Mode {l.mode} ·{' '}
+                    {done ? 'played today · see the results →' : 'new puzzle ready →'}
+                  </span>
+                </button>
+                {/* Only when unplayed. Once you've played, the main tap already
+                    lands on the results page, so a second route would be noise.
+                    LeagueResult hides today from the picker on this path, so it
+                    cannot be used to scout a board before playing it. */}
+                {!done && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm league-card-alt"
+                    onClick={() => onSelectLeague(l, 'standings')}
+                  >
+                    Past results
+                  </button>
+                )}
+              </div>
             )
           })}
         </div>

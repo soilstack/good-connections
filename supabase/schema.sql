@@ -206,3 +206,46 @@ as $$
   -- here, so a new member must append rather than reshuffle everyone after them.
   order by m.joined_at, m.user_id;
 $$;
+
+-- ===========================================================================
+-- past_puzzle: the seed for a league day that is already OVER, so the history
+-- browser can redraw a finished board.
+--
+-- today_puzzle() only ever issues TODAY's seed and daily_seeds has no SELECT
+-- policy, which keeps future puzzles unguessable but also puts finished boards
+-- out of reach. This restores the finished ones and nothing else: p_date >=
+-- today is refused, so today's board still comes only from today_puzzle() and
+-- tomorrow's stays unreachable. Members only.
+-- ===========================================================================
+create or replace function past_puzzle (p_league uuid, p_date date)
+  returns json
+  language plpgsql
+  security definer
+  set search_path = public
+as $$
+declare
+  tz text;
+  m text;
+  s bigint;
+  today date;
+begin
+  select timezone, mode into tz, m from leagues where id = p_league;
+  if tz is null then
+    raise exception 'no such league';
+  end if;
+  if not exists (
+    select 1 from memberships where league_id = p_league and user_id = auth.uid()
+  ) then
+    raise exception 'not a member of this league';
+  end if;
+  today := (now() at time zone tz)::date;
+  if p_date >= today then
+    raise exception 'that puzzle is not finished yet';
+  end if;
+  select seed into s from daily_seeds where league_id = p_league and puzzle_date = p_date;
+  if s is null then
+    return null;
+  end if;
+  return json_build_object('seed', s, 'puzzle_date', p_date, 'mode', m);
+end;
+$$;

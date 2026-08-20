@@ -211,3 +211,48 @@ describe('SameBoardCompare Y cap', () => {
     }
   })
 })
+
+describe('when the chart is allowed to show', () => {
+  const finished = row('a', [10_000, 60_000])
+  const other = row('b', [20_000, 70_000])
+
+  it('hides a live day from a viewer who has not finished', () => {
+    // They are mid-game on this exact board; other players' pacing would be a
+    // hint about a puzzle they are still solving.
+    const unfinished = row('a', [10_000])
+    unfinished.stats = { ...unfinished.stats, completed: false }
+    const svg = renderToStaticMarkup(
+      <SameBoardCompare rows={[unfinished, other]} currentUserId="a" roster={['a', 'b']} />,
+    )
+    expect(svg).toBe('')
+  })
+
+  it('hides a live day from someone who is not in the leaderboard at all', () => {
+    const svg = renderToStaticMarkup(
+      <SameBoardCompare rows={[finished, other]} currentUserId="stranger" roster={['a', 'b']} />,
+    )
+    expect(svg).toBe('')
+  })
+
+  it('shows a finished day even to someone who never played it', () => {
+    // The board is over; there is nothing left to give away.
+    const svg = renderToStaticMarkup(
+      <SameBoardCompare
+        rows={[finished, other]}
+        currentUserId="stranger"
+        roster={['a', 'b']}
+        historic
+      />,
+    )
+    expect(svg).toContain('polyline')
+    expect(svg).toContain('The board — pace')
+    expect(svg).not.toContain('Today’s board')
+  })
+
+  it('still needs two players to be worth drawing', () => {
+    const svg = renderToStaticMarkup(
+      <SameBoardCompare rows={[finished]} currentUserId="a" roster={['a']} historic />,
+    )
+    expect(svg).toBe('')
+  })
+})
