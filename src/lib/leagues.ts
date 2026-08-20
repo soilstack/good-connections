@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import { generateBoard, mulberry32, type Board, type Mode } from '../game/board'
 import { timeSpread, type TimeSpread } from '../game/pace'
+import { zonedDateISO } from './time'
 import {
   deriveStats,
   summarisePlayer,
@@ -403,6 +404,58 @@ export async function getPlayerHistory(
     games,
     summary: summarisePlayer(records, 'league', mode),
   }
+}
+
+/**
+ * For each league, whether the signed-in user has already played its CURRENT
+ * puzzle — so the menu can show at a glance which leagues have a fresh game
+ * waiting.
+ *
+ * The league-local date is computed client-side with the same rule the server
+ * uses in today_puzzle() (`(now() at time zone tz)::date`), which is what makes
+ * a league with a non-midnight rollover come out right: CORSICA's day turns at
+ * 6pm US Eastern, not at the viewer's midnight.
+ *
+ * One query for every league rather than one each. A league whose timezone the
+ * browser cannot parse is reported as unplayed — "there might be a game" is the
+ * harmless direction to be wrong in.
+ */
+export async function getPlayedToday(
+  leagues: readonly { id: string; timezone: string }[],
+): Promise<Record<string, boolean>> {
+  const out: Record<string, boolean> = {}
+  const dates = new Map<string, string>()
+  for (const l of leagues) {
+    const d = zonedDateISO(l.timezone, Date.now())
+    out[l.id] = false
+    if (d !== null) dates.set(l.id, d)
+  }
+  if (dates.size === 0) return out
+
+  const { data: userData } = await supabase.auth.getUser()
+  const userId = userData.user?.id
+  if (!userId) return out
+
+  const { data, error } = await supabase
+    .from('game_records')
+    .select('league_id, puzzle_date')
+    .eq('context', 'league')
+    .eq('user_id', userId)
+    .in('league_id', [...dates.keys()])
+    .in('puzzle_date', [...new Set(dates.values())])
+  if (error) return out
+
+  // Two leagues can share a date, so match on the PAIR — filtering by the two
+  // `in` lists separately would mark a league played on another league's date.
+  const played = new Set(
+    ((data ?? []) as { league_id: string; puzzle_date: string }[]).map(
+      (r) => `${r.league_id}|${r.puzzle_date}`,
+    ),
+  )
+  for (const [leagueId, date] of dates) {
+    out[leagueId] = played.has(`${leagueId}|${date}`)
+  }
+  return out
 }
 
 /** Has the signed-in user already submitted a game for this league + date? */

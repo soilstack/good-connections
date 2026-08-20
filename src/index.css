@@ -248,9 +248,32 @@ body {
 .league-card:active {
   transform: translateY(1px);
 }
+/* A league with a game waiting is lit; one you've already played today recedes.
+   The dot repeats the signal non-chromatically — the card colours in this app
+   already carry meaning, so colour alone would be a poor sole cue. */
+.league-card.is-fresh {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg));
+}
+.league-card.is-played {
+  opacity: 0.72;
+}
+.league-card.is-played .league-meta {
+  color: var(--muted);
+}
 .league-name {
   font-weight: 700;
   font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.league-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: none;
 }
 .league-meta {
   color: var(--accent);
@@ -934,6 +957,56 @@ body {
   padding: 10px;
   max-width: 340px;
 }
+/* ---- Mode A solve-time table ---- */
+/* Six columns is wide for a phone, so the table scrolls inside its own box
+   rather than making the whole page scroll sideways. */
+.stat-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+}
+.stat-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.stat-table th,
+.stat-table td {
+  padding: 8px 10px;
+  text-align: right;
+  white-space: nowrap;
+}
+.stat-table thead th {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-weight: 600;
+  border-bottom: 1px solid var(--card-border);
+}
+/* The player column is the row's label: left-aligned, and it stays put while
+   the numbers scroll under it. */
+.stat-table th[scope='row'],
+.stat-table thead th:first-child {
+  text-align: left;
+  position: sticky;
+  left: 0;
+  background: var(--surface);
+  font-weight: 600;
+}
+.stat-table tbody tr.is-you th[scope='row'],
+.stat-table tbody tr.is-you td {
+  color: var(--text);
+  font-weight: 700;
+}
+.stat-table tbody tr + tr th,
+.stat-table tbody tr + tr td {
+  border-top: 1px solid var(--card-border);
+}
+
 /* The day's sets, revealed once nobody can be leaked to. Two columns on a
    phone so all six fit without a long scroll; the letter ties each back to the
    A/B/C used in the match notes above. */

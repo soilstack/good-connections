@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { getMyLeagues, joinLeague, type League } from '../lib/leagues'
+import { getMyLeagues, getPlayedToday, joinLeague, type League } from '../lib/leagues'
 
 interface LeaguesPanelProps {
   onSelectLeague: (league: League) => void
@@ -7,13 +7,19 @@ interface LeaguesPanelProps {
 
 export function LeaguesPanel({ onSelectLeague }: LeaguesPanelProps) {
   const [leagues, setLeagues] = useState<League[] | null>(null)
+  const [played, setPlayed] = useState<Record<string, boolean>>({})
   const [code, setCode] = useState('')
   const [joining, setJoining] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(() => {
     getMyLeagues()
-      .then(setLeagues)
+      .then((ls) => {
+        setLeagues(ls)
+        // Which of them have a game waiting. A failure here just means every
+        // card renders in its neutral state, so it never touches `error`.
+        return getPlayedToday(ls).then(setPlayed)
+      })
       .catch((e) => setError(e instanceof Error ? e.message : String(e)))
   }, [])
 
@@ -49,17 +55,28 @@ export function LeaguesPanel({ onSelectLeague }: LeaguesPanelProps) {
 
       {leagues && leagues.length > 0 && (
         <div className="league-list">
-          {leagues.map((l) => (
-            <button
-              type="button"
-              key={l.id}
-              className="league-card"
-              onClick={() => onSelectLeague(l)}
-            >
-              <span className="league-name">{l.name}</span>
-              <span className="league-meta">Mode {l.mode} · play today’s puzzle →</span>
-            </button>
-          ))}
+          {leagues.map((l) => {
+            const done = played[l.id] === true
+            return (
+              <button
+                type="button"
+                key={l.id}
+                className={`league-card ${done ? 'is-played' : 'is-fresh'}`}
+                onClick={() => onSelectLeague(l)}
+              >
+                <span className="league-name">
+                  {l.name}
+                  {/* A dot as well as the colour: the card colours already
+                      carry meaning elsewhere in this app, and colour alone is
+                      a poor sole signal. */}
+                  {!done && <span className="league-dot" aria-hidden="true" />}
+                </span>
+                <span className="league-meta">
+                  Mode {l.mode} · {done ? 'played today · see the results →' : 'new puzzle ready →'}
+                </span>
+              </button>
+            )
+          })}
         </div>
       )}
       {leagues && leagues.length === 0 && (

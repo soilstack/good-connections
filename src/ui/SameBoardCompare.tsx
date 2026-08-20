@@ -84,7 +84,9 @@ export function SameBoardCompare({
   // under the half-step slots, which is what produced the unreadable
   // "6false done7false done8done" run along the axis. Thin the ticks if a board
   // ever carries enough sets to crowd them.
-  const tickStep = Math.ceil(maxN / 8)
+  // ~25px per label across the 300-unit plot is comfortable, so up to a dozen
+  // ticks all fit; only a board with more sets than that needs thinning.
+  const tickStep = Math.ceil(maxN / 12)
   const xTicks = Array.from({ length: maxN }, (_, i) => i + 1).filter(
     (n) => n % tickStep === 0 || n === 1 || n === maxN,
   )
