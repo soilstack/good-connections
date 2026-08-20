@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatClock, formatCountdown, nextMidnightMs } from './time'
+import { formatClock, formatCountdown, isSlotClosed, nextMidnightMs, zonedDateISO } from './time'
 
 /** Wall-clock reading of an instant in a zone, as "YYYY-MM-DD HH:mm". */
 function wallClock(timezone: string, atMs: number): string {
@@ -61,6 +61,52 @@ describe('nextMidnightMs', () => {
 
   it('returns null for an unknown zone instead of throwing', () => {
     expect(nextMidnightMs('Mars/Olympus_Mons', Date.now())).toBeNull()
+  })
+})
+
+describe('zonedDateISO', () => {
+  it('reads the date in the target zone, not the runner’s', () => {
+    // 2026-08-18T17:00Z is still the 18th in London but already the 19th in SG.
+    const at = Date.parse('2026-08-18T17:00:00Z')
+    expect(zonedDateISO('Europe/London', at)).toBe('2026-08-18')
+    expect(zonedDateISO('Asia/Singapore', at)).toBe('2026-08-19')
+  })
+
+  it('zero-pads month and day', () => {
+    expect(zonedDateISO('UTC', Date.parse('2026-01-05T12:00:00Z'))).toBe('2026-01-05')
+  })
+
+  it('returns null for an unknown zone', () => {
+    expect(zonedDateISO('Mars/Olympus_Mons', Date.now())).toBeNull()
+  })
+})
+
+describe('isSlotClosed', () => {
+  // CORSICA: local midnight in Etc/GMT-1 is 6pm US Eastern Standard Time.
+  const tz = 'Etc/GMT-1'
+
+  it('is open while the puzzle’s own day is still running', () => {
+    // 2026-01-15T22:00Z is 23:00 in UTC+1 — still the 15th there.
+    expect(isSlotClosed(tz, '2026-01-15', Date.parse('2026-01-15T22:00:00Z'))).toBe(false)
+  })
+
+  it('closes the moment the league’s day rolls over', () => {
+    // 23:00Z = midnight on the 16th in UTC+1, i.e. 6pm EST — the new puzzle.
+    expect(isSlotClosed(tz, '2026-01-15', Date.parse('2026-01-15T23:00:00Z'))).toBe(true)
+  })
+
+  it('stays closed for older puzzles', () => {
+    expect(isSlotClosed(tz, '2026-01-01', Date.parse('2026-01-15T22:00:00Z'))).toBe(true)
+  })
+
+  it('treats a future-dated puzzle as open', () => {
+    expect(isSlotClosed(tz, '2026-02-01', Date.parse('2026-01-15T22:00:00Z'))).toBe(false)
+  })
+
+  it('fails closed for an unknown zone', () => {
+    // Anything gated on this reveals a solution, so a bad league row must keep
+    // it hidden rather than open it up.
+    expect(isSlotClosed('Mars/Olympus_Mons', '2020-01-01', Date.now())).toBe(false)
   })
 })
 

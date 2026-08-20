@@ -1,12 +1,18 @@
 import { useEffect, useState } from 'react'
-import type { Mode } from '../game/board'
+import type { Board, Mode } from '../game/board'
 import type { GameStats } from '../game/telemetry'
-import { getLeaderboard, type LeaderboardRow } from '../lib/leagues'
+import {
+  getLeaderboard,
+  getLeagueRoster,
+  getTodayPuzzle,
+  type LeaderboardRow,
+} from '../lib/leagues'
+import { isSlotClosed } from '../lib/time'
 import { formatTime } from './format'
 import { SolveTimelineView } from './SolveTimelineView'
 import { LeagueStatsView } from './LeagueStatsView'
 import { SameBoardCompare } from './SameBoardCompare'
-import { MatchSummary } from './MatchSummary'
+import { canRevealSets, MatchSummary } from './MatchSummary'
 import { NextPuzzle } from './NextPuzzle'
 import { Stat } from './Stat'
 import { PlayerPerformance } from './PlayerPerformance'
@@ -41,6 +47,10 @@ export function LeagueResult({
   const [expanded, setExpanded] = useState<string | null>(null)
   // Non-null = the member whose performance page has taken over the screen.
   const [viewing, setViewing] = useState<string | null>(null)
+  // League members in join order — drives stable chart colours and the
+  // "everyone has played" reveal gate. Null while loading or unavailable.
+  const [roster, setRoster] = useState<string[] | null>(null)
+  const [board, setBoard] = useState<Board | null>(null)
 
   useEffect(() => {
     let active = true
@@ -51,10 +61,43 @@ export function LeagueResult({
       .catch((e) => {
         if (active) setError(e instanceof Error ? e.message : String(e))
       })
+    // The roster is a nice-to-have: a failure softens two features rather than
+    // breaking the page, so it never touches `error`.
+    getLeagueRoster(leagueId).then((ids) => {
+      if (active) setRoster(ids)
+    })
     return () => {
       active = false
     }
   }, [leagueId, puzzleDate])
+
+  const played = rows?.map((r) => r.userId) ?? []
+  const reveal = rows
+    ? canRevealSets({
+        playedUserIds: played,
+        roster,
+        slotClosed: isSlotClosed(timezone, puzzleDate, Date.now()),
+      })
+    : null
+
+  // Only fetch the board once the sets may actually be shown. today_puzzle()
+  // hands back the seed and generateBoard() computes the solution locally, so
+  // this is the same data the game already had — but not fetching it until it
+  // is needed keeps the "no solution before the slot closes" rule obvious.
+  useEffect(() => {
+    if (!reveal || board) return
+    let active = true
+    getTodayPuzzle(leagueId)
+      .then((p) => {
+        if (active && p.puzzleDate === puzzleDate) setBoard(p.board)
+      })
+      .catch(() => {
+        /* no board, no reveal — the letters still stand on their own */
+      })
+    return () => {
+      active = false
+    }
+  }, [reveal, board, leagueId, puzzleDate])
 
   if (viewing !== null) {
     return (
@@ -119,6 +162,13 @@ export function LeagueResult({
                     {r.stats.completed
                       ? formatTime(r.stats.totalTimeMs ?? 0)
                       : `${r.stats.setsFound} found`}
+                    {/* Penalties are already inside that time; naming them
+                        separately shows how much of it was self-inflicted. */}
+                    {r.stats.penaltyMs > 0 && (
+                      <span className="leader-penalty">
+                        incl. +{formatTime(r.stats.penaltyMs)}
+                      </span>
+                    )}
                   </span>
                 </button>
                 {expanded === r.userId && <SolveTimelineView events={r.events} />}
@@ -130,9 +180,11 @@ export function LeagueResult({
         )}
       </section>
 
-      {rows && rows.length > 0 && <MatchSummary rows={rows} currentUserId={userId} />}
+      {rows && rows.length > 0 && (
+        <MatchSummary rows={rows} currentUserId={userId} board={board} reveal={reveal} />
+      )}
 
-      {rows && <SameBoardCompare rows={rows} currentUserId={userId} />}
+      {rows && <SameBoardCompare rows={rows} currentUserId={userId} roster={roster} />}
 
       <LeagueStatsView
         leagueId={leagueId}

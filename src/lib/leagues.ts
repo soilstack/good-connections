@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { generateBoard, mulberry32, type Board, type Mode } from '../game/board'
+import { timeSpread, type TimeSpread } from '../game/pace'
 import {
   deriveStats,
   summarisePlayer,
@@ -40,6 +41,25 @@ export async function getMyLeagues(): Promise<League[]> {
     else leagues.push(row.leagues)
   }
   return leagues
+}
+
+/**
+ * The league's members, in join order — the order chart colours are assigned
+ * from, so it must stay append-only (see ui/playerColour).
+ *
+ * Returns null rather than throwing if the `league_members()` function is not
+ * installed on the database yet. Every caller treats null as "roster unknown"
+ * and degrades: colours fall back to a stable sort, and the set-card reveal
+ * falls back to waiting for the day to close. A missing migration should soften
+ * two features, not break the results page.
+ */
+export async function getLeagueRoster(leagueId: string): Promise<string[] | null> {
+  const { data, error } = await supabase.rpc('league_members', { p_league: leagueId })
+  if (error) return null
+  const ids = (data ?? []) as unknown
+  if (!Array.isArray(ids)) return null
+  // The RPC returns a setof uuid, which supabase-js hands back as bare strings.
+  return ids.map((v) => String(v))
 }
 
 /** Join a league by its code; returns the league id. */
@@ -151,6 +171,12 @@ export interface MemberStat {
   gamesCompleted: number
   completionRate: number
   bestTimeMs: number | null
+  /** Best/worst/mean/std-dev over COMPLETED games only — abandoned games have
+   * a shorter elapsed time, so including them would reward giving up. Null
+   * until the member has finished at least one. */
+  spread: TimeSpread | null
+  /** Total penalty time this member has been charged across the league. */
+  penaltyMs: number
   /** Consecutive calendar days completed, ending at the member's latest. */
   currentStreak: number
 }
@@ -252,13 +278,18 @@ export async function getLeagueStats(leagueId: string, mode: Mode): Promise<Leag
   const members: MemberStat[] = [...byUser.entries()]
     .map(([userId, gs]) => {
       const comp = gs.filter((g) => g.stats.completed && g.stats.totalTimeMs !== null)
+      const spread = timeSpread(comp.map((g) => g.stats.totalTimeMs!))
       return {
         userId,
         displayName: names.get(userId) ?? '—',
         gamesPlayed: gs.length,
         gamesCompleted: comp.length,
         completionRate: gs.length > 0 ? comp.length / gs.length : 0,
-        bestTimeMs: comp.length > 0 ? Math.min(...comp.map((g) => g.stats.totalTimeMs!)) : null,
+        bestTimeMs: spread?.bestMs ?? null,
+        spread,
+        // Every game, not just completed ones: a penalty was really paid even
+        // in a game the player went on to abandon.
+        penaltyMs: gs.reduce((acc, g) => acc + g.stats.penaltyMs, 0),
         currentStreak: currentStreak(comp.map((g) => g.date)),
       }
     })

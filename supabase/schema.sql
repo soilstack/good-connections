@@ -174,3 +174,35 @@ begin
   return json_build_object('seed', s, 'puzzle_date', d, 'mode', m);
 end;
 $$;
+
+-- ===========================================================================
+-- league_members: the roster of one league, for members of that league only.
+--
+-- The memberships policy above is deliberately "your own rows only", so a
+-- member cannot otherwise see who else is in their league. Two features need
+-- the roster: stable per-player chart colours (assigned from the full roster,
+-- so a colour does not shift on days someone is absent) and the "everyone has
+-- played" gate that decides when a day's set cards become safe to show.
+--
+-- Returns bare user ids for a league the caller already belongs to, and
+-- nothing else -- members can already read each other's display names and
+-- game records, so this leaks nothing new. Zero rows for a league you are not
+-- in, rather than an error.
+-- ===========================================================================
+create or replace function league_members (p_league uuid)
+  returns setof uuid
+  language sql
+  security definer
+  set search_path = public
+as $$
+  select m.user_id
+  from memberships m
+  where m.league_id = p_league
+    and exists (
+      select 1 from memberships self
+      where self.league_id = p_league and self.user_id = auth.uid()
+    )
+  -- Join order, NOT user_id order: the client assigns chart colours by position
+  -- here, so a new member must append rather than reshuffle everyone after them.
+  order by m.joined_at, m.user_id;
+$$;
