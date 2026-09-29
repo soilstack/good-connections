@@ -47,20 +47,31 @@ function consensus(indices: number[]): { label: string; count: number } | null {
  * "everyone played" test is unavailable, and this falls back to waiting for the
  * slot to close, which is the cautious direction.
  */
-export type RevealReason = 'all-played' | 'slot-closed'
+export type RevealReason = 'all-played' | 'slot-closed' | 'you-finished'
 
 export function canRevealSets(args: {
   playedUserIds: readonly string[]
   roster: readonly string[] | null
   slotClosed: boolean
+  /**
+   * Whether the VIEWER completed this day's board. Completing means finding
+   * every set — Modes A and B end on the last one, and Mode C only completes
+   * when `found.size === board.sets.length` — so the solution is something
+   * they already hold. Showing it back to them reveals nothing, which is why
+   * this can fire while the day is still live for everyone else.
+   *
+   * Emphatically NOT true of someone who gave up: they have missing sets, and
+   * those must stay hidden until the day closes.
+   */
+  viewerCompleted?: boolean
 }): RevealReason | null {
-  // "Everyone played" is checked first so the caption can say the true reason
-  // on a day that satisfies both.
+  // Most public reason first, so the caption gives the strongest true one.
   if (args.roster && args.roster.length > 0) {
     const played = new Set(args.playedUserIds)
     if (args.roster.every((id) => played.has(id))) return 'all-played'
   }
-  return args.slotClosed ? 'slot-closed' : null
+  if (args.slotClosed) return 'slot-closed'
+  return args.viewerCompleted ? 'you-finished' : null
 }
 
 export function MatchSummary({
@@ -173,7 +184,9 @@ export function MatchSummary({
           : board
             ? reveal === 'all-played'
               ? ' Everyone has played, so here they are.'
-              : ' The day is over, so here they are.'
+              : reveal === 'slot-closed'
+                ? ' The day is over, so here they are.'
+                : ' You found them all, so here they are.'
             : ''}
       </p>
     </section>

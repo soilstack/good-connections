@@ -123,6 +123,9 @@ export function LeagueResult({
           playedUserIds: played,
           roster,
           slotClosed: isSlotClosed(timezone, date, Date.now()),
+          // Read off this day's own leaderboard, not the just-finished game,
+          // so it stays right when the viewer flicks to another day.
+          viewerCompleted: rows.some((r) => r.userId === userId && r.stats.completed),
         })
       : null
 
@@ -246,8 +249,11 @@ export function LeagueResult({
       {showOwnStats && (
         <div className="stats-grid">
           <Stat
-            label="Your time"
-            value={stats.completed ? formatTime(stats.totalTimeMs ?? 0, true) : '—'}
+            // A given-up game has a real elapsed time and always did —
+            // deriveStats reads it off game_end whatever the reason. Printing
+            // "—" threw away a number the log already had.
+            label={stats.completed ? 'Your time' : 'Gave up at'}
+            value={stats.totalTimeMs === null ? '—' : formatTime(stats.totalTimeMs, true)}
           />
           <Stat label="Sets found" value={`${stats.setsFound}`} />
           <Stat label="Mistakes" value={`${stats.errorCount}`} />
@@ -282,6 +288,15 @@ export function LeagueResult({
                     {r.stats.completed
                       ? formatTime(r.stats.totalTimeMs ?? 0)
                       : `${r.stats.setsFound} found`}
+                    {/* When they gave up matters: "5 found" alone reads the
+                        same whether they quit at 40s or fought for six
+                        minutes. Kept out of the ranked time above so it can
+                        never be mistaken for a solve. */}
+                    {!r.stats.completed && r.stats.totalTimeMs !== null && (
+                      <span className="leader-sub">
+                        gave up at {formatTime(r.stats.totalTimeMs)}
+                      </span>
+                    )}
                     {/* Penalties are already inside that time; naming them
                         separately shows how much of it was self-inflicted. */}
                     {r.stats.penaltyMs > 0 && (

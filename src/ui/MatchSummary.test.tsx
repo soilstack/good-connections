@@ -226,3 +226,54 @@ describe('MatchSummary set reveal', () => {
     expect(svg).not.toContain('set-reveal')
   })
 })
+
+describe('canRevealSets — the viewer’s own completed board', () => {
+  const roster = ['alice', 'bob', 'carol']
+
+  it('shows the board to someone who found every set, even mid-day', () => {
+    // Completing means finding all of them, so this reveals nothing they do
+    // not already hold. It is what makes the board visible the moment you
+    // finish, instead of waiting on the slowest member.
+    expect(
+      canRevealSets({
+        playedUserIds: ['alice'],
+        roster,
+        slotClosed: false,
+        viewerCompleted: true,
+      }),
+    ).toBe('you-finished')
+  })
+
+  it('does NOT show it to someone who gave up', () => {
+    // The whole point of the rule: they have sets they never found, and the
+    // day is still live for everyone else.
+    expect(
+      canRevealSets({
+        playedUserIds: ['alice'],
+        roster,
+        slotClosed: false,
+        viewerCompleted: false,
+      }),
+    ).toBeNull()
+  })
+
+  it('defaults to hidden when the caller says nothing about the viewer', () => {
+    expect(
+      canRevealSets({ playedUserIds: ['alice'], roster, slotClosed: false }),
+    ).toBeNull()
+  })
+
+  it('still prefers the more public reason when several apply', () => {
+    expect(
+      canRevealSets({ playedUserIds: roster, roster, slotClosed: true, viewerCompleted: true }),
+    ).toBe('all-played')
+    expect(
+      canRevealSets({
+        playedUserIds: ['alice'],
+        roster,
+        slotClosed: true,
+        viewerCompleted: true,
+      }),
+    ).toBe('slot-closed')
+  })
+})

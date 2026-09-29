@@ -99,6 +99,9 @@ export function SameBoardCompare({
     (n) => n % tickStep === 0 || n === 1 || n === maxN,
   )
   const anyPenalty = series.some((s) => s.pace.risers.length > 0)
+  const doneTickXs = [
+    ...new Set(series.flatMap((s) => (s.pace.finish ? [s.pace.finish.x] : []))),
+  ].sort((a, b) => a - b)
 
   const show = (name: string, colour: string, text: string) => () =>
     setDetail({ name, colour, text })
@@ -116,6 +119,16 @@ export function SameBoardCompare({
         {xTicks.map((n) => (
           <text key={n} x={x(n)} y={H - 8} className="pc-xlabel">
             {n}
+          </text>
+        ))}
+        {/* Mode C: the winning "Done" press is its own slot on the axis, so the
+            square at the end of a line has a label to sit under. Everyone who
+            completes has found every set, so in practice this is one position.
+            A single "D" is compact enough not to reintroduce the axis overlap
+            the old "false done" labels caused. */}
+        {doneTickXs.map((v) => (
+          <text key={`d${v}`} x={x(v)} y={H - 8} className="pc-xlabel">
+            D
           </text>
         ))}
 

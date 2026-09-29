@@ -163,8 +163,10 @@ export function PlayerPerformanceView({
                 <p className="muted">
                   Share of set pairs found in the order an exhaustive left-to-right scan would
                   find them, over {s.scanOrder.games} game{s.scanOrder.games === 1 ? '' : 's'}.
-                  50% is what picking at random gets you; higher means you work the board more
-                  systematically. Too noisy to read game by game, so only the average is shown.
+                  <b> 100%</b> is a perfect scan, <b>50%</b> is what picking at random gets you,
+                  and <b>0%</b> is the exact reverse — working the board bottom-up. So below 50%
+                  is not “bad”, it means you scan against the grain. Too noisy to read game by
+                  game, so only the average is shown.
                 </p>
               </div>
             </section>
@@ -197,7 +199,9 @@ export function PlayerPerformanceView({
                     <span className="leader-result">
                       {g.stats.completed
                         ? formatTime(g.stats.totalTimeMs ?? 0)
-                        : `gave up · ${g.stats.setsFound}/${g.totalSets}`}
+                        : `gave up at ${formatTime(g.stats.totalTimeMs ?? 0)} · ${
+                            g.stats.setsFound
+                          }/${g.totalSets}`}
                     </span>
                   </button>
                   {expanded === g.id && <SolveTimelineView events={g.events} />}
