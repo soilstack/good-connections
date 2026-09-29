@@ -13,7 +13,69 @@
   --warn: #f5b544;
   --primary: #4f8cff;
 
+  /* Not every colour can be a token: the card-lift shadow and the dialog scrim
+     are near-black by design in the dark theme and have to invert, so they get
+     their own variables rather than being hardcoded at the use site. */
+  --scrim: rgba(6, 8, 18, 0.72);
+  --card-lift: 0 12px 24px rgba(0, 0, 0, 0.55);
+  /* A white card on a near-black page needs no outline; on a light page it
+     does, or the cards dissolve into the background. */
+  --card-edge: transparent;
+
   color-scheme: dark;
+}
+
+/* Light theme, two ways in.
+   1. The system asks for light AND the player has not chosen dark. The
+      :not([data-theme='dark']) guard is what keeps a deliberate choice of dark
+      from being overridden by the OS setting.
+   2. The player picked light explicitly, which wins over any system setting. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    --bg: #e9edf7;
+    --surface: #ffffff;
+    --surface-2: #dde3f1;
+    --card-face: #ffffff;
+    --card-border: #d4dae9;
+    --text: #131730;
+    --muted: #59607e;
+
+    --accent: #1d4ed8;
+    --ok: #0e7a43;
+    --bad: #cc1836;
+    /* The dark theme's amber (#f5b544) is unreadable on white; this is the same
+       signal at a contrast that survives the flip. */
+    --warn: #9a6100;
+    --primary: #1d4ed8;
+
+    --scrim: rgba(19, 23, 48, 0.45);
+    --card-lift: 0 12px 24px rgba(19, 23, 48, 0.22);
+
+    color-scheme: light;
+  }
+}
+:root[data-theme='light'] {
+  --bg: #e9edf7;
+  --surface: #ffffff;
+  --surface-2: #dde3f1;
+  --card-face: #ffffff;
+  --card-border: #d4dae9;
+  --text: #131730;
+  --muted: #59607e;
+
+  --accent: #1d4ed8;
+  --ok: #0e7a43;
+  --bad: #cc1836;
+  /* The dark theme's amber (#f5b544) is unreadable on white; this is the same
+     signal at a contrast that survives the flip. */
+  --warn: #9a6100;
+  --primary: #1d4ed8;
+
+  --scrim: rgba(19, 23, 48, 0.45);
+  --card-lift: 0 12px 24px rgba(19, 23, 48, 0.22);
+  --card-edge: #c9d2e6;
+
+  color-scheme: light;
 }
 
 * {
@@ -83,6 +145,9 @@ body {
   background: var(--card-face);
   border-radius: 12px;
   display: block;
+}
+.set-card[data-card-theme='classic'] {
+  box-shadow: 0 0 0 1px var(--card-edge);
 }
 .set-card:not([data-card-theme='classic']) {
   background: transparent;
@@ -860,7 +925,7 @@ body {
 .card-btn.is-selected .set-card {
   outline: 5px solid var(--accent);
   outline-offset: 3px;
-  box-shadow: 0 0 0 4px rgba(79, 140, 255, 0.4), 0 12px 24px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 0 0 4px rgba(79, 140, 255, 0.4), var(--card-lift);
 }
 .card-btn.fb-valid .set-card {
   outline: 5px solid var(--ok);
@@ -888,7 +953,7 @@ body {
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(6, 8, 18, 0.72);
+  background: var(--scrim);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1115,4 +1180,30 @@ body {
     flex-direction: column;
     gap: 3px;
   }
+}
+
+/* ---- segmented control (appearance) ---- */
+.seg {
+  display: flex;
+  gap: 4px;
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 4px;
+}
+.seg-option {
+  flex: 1;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.seg-option.is-active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
 }

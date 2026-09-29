@@ -5,6 +5,7 @@ import { loadRecords } from './storage'
 import { formatTime } from './format'
 import { Card } from './Card'
 import { CARD_THEMES, type CardTheme } from './cardThemes'
+import type { AppTheme } from './appTheme'
 import type { AuthState } from './useAuth'
 import { LeaguesPanel } from './LeaguesPanel'
 import type { League } from '../lib/leagues'
@@ -15,6 +16,8 @@ interface MenuProps {
   refreshKey: number
   cardTheme: CardTheme
   onCardThemeChange: (theme: CardTheme) => void
+  appTheme: AppTheme
+  onAppThemeChange: (theme: AppTheme) => void
   auth: AuthState
   onSignIn: () => void
   onSignOut: () => void
@@ -58,6 +61,50 @@ function AuthBar({
 }
 
 const THEME_PREVIEW_CARD = { count: 1, colour: 2, shape: 1, fill: 1 } as const
+
+const APP_THEMES: { id: AppTheme; label: string }[] = [
+  { id: 'system', label: 'Auto' },
+  { id: 'light', label: 'Light' },
+  { id: 'dark', label: 'Dark' },
+]
+
+/**
+ * Page light/dark. Deliberately separate from the card style below: they are
+ * different things, and mixing them into one control would imply a light page
+ * forces a particular deck.
+ */
+function AppThemePicker({
+  value,
+  onChange,
+}: {
+  value: AppTheme
+  onChange: (theme: AppTheme) => void
+}) {
+  return (
+    <section className="theme-picker" aria-labelledby="app-theme-heading">
+      <div className="theme-picker-head">
+        <h2 id="app-theme-heading">Appearance</h2>
+        <span>{value === 'system' ? 'Following your device' : `Always ${value}`}</span>
+      </div>
+      <div className="seg" role="group" aria-label="Appearance">
+        {APP_THEMES.map((t) => {
+          const selected = t.id === value
+          return (
+            <button
+              type="button"
+              key={t.id}
+              className={`seg-option${selected ? ' is-active' : ''}`}
+              aria-pressed={selected}
+              onClick={() => onChange(t.id)}
+            >
+              {t.label}
+            </button>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
 
 function ThemePicker({
   value,
@@ -130,6 +177,8 @@ export function Menu({
   refreshKey,
   cardTheme,
   onCardThemeChange,
+  appTheme,
+  onAppThemeChange,
   auth,
   onSignIn,
   onSignOut,
@@ -150,6 +199,8 @@ export function Menu({
       <AuthBar auth={auth} onSignIn={onSignIn} onSignOut={onSignOut} />
 
       {auth.status === 'signedIn' && <LeaguesPanel onSelectLeague={onSelectLeague} />}
+
+      <AppThemePicker value={appTheme} onChange={onAppThemeChange} />
 
       <ThemePicker value={cardTheme} onChange={onCardThemeChange} />
 

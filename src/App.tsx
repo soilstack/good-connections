@@ -1,10 +1,11 @@
-import { useState, useCallback, type ReactNode } from 'react'
+import { useState, useCallback, useEffect, type ReactNode } from 'react'
 import { generateBoard, type Board, type Mode } from './game/board'
 import { Menu } from './ui/Menu'
 import { Game } from './ui/Game'
 import { LeagueResult } from './ui/LeagueResult'
 import { CardThemeProvider } from './ui/CardThemeContext'
 import { loadCardTheme, saveCardTheme, type CardTheme } from './ui/cardThemes'
+import { applyAppTheme, loadAppTheme, saveAppTheme, type AppTheme } from './ui/appTheme'
 import { useAuth } from './ui/useAuth'
 import { SignIn } from './ui/SignIn'
 import { DisplayNamePrompt } from './ui/DisplayNamePrompt'
@@ -39,6 +40,7 @@ export function App() {
   const [playing, setPlaying] = useState<Playing | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const [cardTheme, setCardTheme] = useState<CardTheme>(loadCardTheme)
+  const [appTheme, setAppTheme] = useState<AppTheme>(loadAppTheme)
   const [showSignIn, setShowSignIn] = useState(false)
   const [league, setLeague] = useState<LeagueView | null>(null)
 
@@ -61,6 +63,18 @@ export function App() {
   const changeCardTheme = useCallback((theme: CardTheme) => {
     setCardTheme(theme)
     saveCardTheme(theme)
+  }, [])
+
+  // Applied as an effect rather than in the click handler, so the stored choice
+  // is on <html> from the first render too and the page never flashes the wrong
+  // palette on load.
+  useEffect(() => {
+    applyAppTheme(appTheme)
+  }, [appTheme])
+
+  const changeAppTheme = useCallback((theme: AppTheme) => {
+    setAppTheme(theme)
+    saveAppTheme(theme)
   }, [])
 
   /**
@@ -183,6 +197,8 @@ export function App() {
       refreshKey={refreshKey}
       cardTheme={cardTheme}
       onCardThemeChange={changeCardTheme}
+      appTheme={appTheme}
+      onAppThemeChange={changeAppTheme}
       auth={auth.state}
       onSignIn={() => setShowSignIn(true)}
       onSignOut={auth.signOut}
