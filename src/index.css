@@ -1046,23 +1046,17 @@ body {
   max-width: 340px;
 }
 /* The find-order string, e.g. ABCfDE. Monospace so the letters line up between
-   players and a repeat is obvious in the column. Colour is a summary, never the
-   only signal — the letters themselves say what happened, and the title
-   attribute names the grade. */
+   players and a repeat is obvious down the column. Green marks a clean scan and
+   nothing else is coloured — the letters themselves say what happened. */
 .order-string {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 13px;
   letter-spacing: 0.12em;
   margin-top: 3px;
+  color: var(--muted);
 }
 .order-string.is-perfect {
   color: var(--ok);
-}
-.order-string.is-near {
-  color: var(--warn);
-}
-.order-string.is-jumbled {
-  color: var(--bad);
 }
 
 /* ---- day picker on the results page ---- */

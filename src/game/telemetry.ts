@@ -459,9 +459,6 @@ export function setLabel(setIndex: number): string {
   return String.fromCharCode(65 + (setIndex % 26))
 }
 
-/** How far a player's find order strayed from the board's canonical scan order. */
-export type OrderGrade = 'perfect' | 'near' | 'jumbled'
-
 export interface FindOrder {
   /**
    * The finds in the order they happened, e.g. "ABCFDE". A set the player
@@ -471,25 +468,24 @@ export interface FindOrder {
    */
   text: string
   /**
-   * How many sets sit out of place: the count that would have to be lifted out
-   * and reinserted to leave a canonical scan.
+   * True when the sets fell in one clean sweep: canonical scan order, or its
+   * exact reverse. Working the board bottom-up is just as systematic as working
+   * it top-down — only the direction differs — so both earn the mark.
+   *
+   * Repeats do not break it: re-finding a set is wasted time, not an ordering
+   * mistake, and scanOrderScore — the one metric for how systematic a player is
+   * — ignores them too. Only the order of first finds counts.
    */
-  displaced: number
-  grade: OrderGrade
+  perfect: boolean
 }
 
 /**
  * The find-order string for one game.
  *
- * Graded by how many sets are DISPLACED (found length minus the longest
- * increasing subsequence), not by counting inversions. The two disagree in a way
- * that matters: "ABCFDE" is one set taken early but inverts two pairs, while a
- * neighbouring swap "BACDEF" inverts only one. Judged by inversions the tidier
- * sequence would score worse; judged by displacement both are "one set out of
- * turn", which is what a player actually did.
- *
- * Repeats never affect the grade. Re-finding a set is wasted time, not a
- * scan-order mistake — it was already found in its proper place.
+ * Deliberately a flag, not a grade. How far from canonical an order is has a
+ * metric already — scanOrderScore — and a second scale here would be the same
+ * fact told twice, on a different footing. This just answers "was it one clean
+ * sweep, yes or no".
  */
 export function findOrderString(events: readonly TelemetryEvent[]): FindOrder | null {
   const parts: string[] = []
@@ -504,19 +500,13 @@ export function findOrderString(events: readonly TelemetryEvent[]): FindOrder | 
   }
   if (order.length === 0) return null
 
-  // Longest increasing subsequence, O(n²) over at most ~14 sets.
-  const best = order.map(() => 1)
+  let ascending = true
+  let descending = true
   for (let i = 1; i < order.length; i++) {
-    for (let j = 0; j < i; j++) {
-      if (order[j]! < order[i]!) best[i] = Math.max(best[i]!, best[j]! + 1)
-    }
+    if (order[i]! < order[i - 1]!) ascending = false
+    if (order[i]! > order[i - 1]!) descending = false
   }
-  const displaced = order.length - Math.max(...best)
-  return {
-    text: parts.join(''),
-    displaced,
-    grade: displaced === 0 ? 'perfect' : displaced === 1 ? 'near' : 'jumbled',
-  }
+  return { text: parts.join(''), perfect: ascending || descending }
 }
 
 /**

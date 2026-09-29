@@ -26,12 +26,6 @@ interface Entry {
   ditheringMs: number | null
 }
 
-const ORDER_TITLE: Record<FindOrder['grade'], string> = {
-  perfect: 'Found in exact scan order',
-  near: 'One set found out of turn',
-  jumbled: 'Two or more sets found out of turn',
-}
-
 /** The set index most players share, if enough of them do to be worth saying. */
 function consensus(indices: number[]): { label: string; count: number } | null {
   if (indices.length < 2) return null
@@ -164,11 +158,12 @@ export function MatchSummary({
                 </>
               )}
             </span>
-            {/* The order they fell in. Green = a clean scan, amber = one set
-                taken out of turn, red = genuinely jumbled. A lower-case letter
-                is a set re-submitted after it had already been found. */}
+            {/* The order they fell in. Green only when it was a clean scan;
+                everything else reads as ordinary text, since how far from
+                canonical an order is already has a metric of its own. A
+                lower-case letter is a set re-submitted after being found. */}
             {e.order && (
-              <span className={`order-string is-${e.order.grade}`} title={ORDER_TITLE[e.order.grade]}>
+              <span className={`order-string${e.order.perfect ? ' is-perfect' : ''}`}>
                 {e.order.text}
               </span>
             )}

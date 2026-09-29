@@ -26,36 +26,36 @@ describe('findOrderString', () => {
     expect(findOrderString(sequence([0, 1, 2]))!.text).toBe('ABC')
   })
 
-  it('grades a canonical scan as perfect', () => {
+  it('marks a canonical scan as perfect', () => {
     const o = findOrderString(sequence([0, 1, 2, 3, 4, 5]))!
     expect(o.text).toBe('ABCDEF')
-    expect(o.displaced).toBe(0)
-    expect(o.grade).toBe('perfect')
+    expect(o.perfect).toBe(true)
   })
 
-  it('grades one set found out of turn as near', () => {
-    // ABCFDE — F came early. Removing F alone restores the scan order, so
-    // exactly one set is displaced, however many pairs that inverts.
-    const o = findOrderString(sequence([0, 1, 2, 5, 3, 4]))!
-    expect(o.text).toBe('ABCFDE')
-    expect(o.displaced).toBe(1)
-    expect(o.grade).toBe('near')
+  it('marks an exact REVERSE sweep as perfect too', () => {
+    // Working the board bottom-up is just as systematic as top-down; only the
+    // direction differs. Scan order still records which way they swept.
+    const o = findOrderString(sequence([5, 4, 3, 2, 1, 0]))!
+    expect(o.text).toBe('FEDCBA')
+    expect(o.perfect).toBe(true)
   })
 
-  it('grades a genuinely scrambled order as jumbled', () => {
+  it('is not perfect when one set comes out of turn', () => {
+    expect(findOrderString(sequence([0, 1, 2, 5, 3, 4]))!.perfect).toBe(false)
+    expect(findOrderString(sequence([1, 0, 2, 3, 4, 5]))!.perfect).toBe(false)
+  })
+
+  it('is not perfect for an order that changes direction', () => {
+    // Descending then ascending is not one sweep, however tidy each half looks.
+    const o = findOrderString(sequence([5, 4, 3, 0, 1, 2]))!
+    expect(o.text).toBe('FEDABC')
+    expect(o.perfect).toBe(false)
+  })
+
+  it('is not perfect for a scrambled order', () => {
     const o = findOrderString(sequence([5, 2, 0, 4, 1, 3]))!
     expect(o.text).toBe('FCAEBD')
-    expect(o.displaced).toBeGreaterThan(1)
-    expect(o.grade).toBe('jumbled')
-  })
-
-  it('counts displacement by longest increasing run, not by inversions', () => {
-    // A straight swap of two neighbours displaces one set, not two: BACDEF
-    // reads as "B came early", which is the same shape of mistake as ABCFDE.
-    const o = findOrderString(sequence([1, 0, 2, 3, 4, 5]))!
-    expect(o.text).toBe('BACDEF')
-    expect(o.displaced).toBe(1)
-    expect(o.grade).toBe('near')
+    expect(o.perfect).toBe(false)
   })
 
   it('marks a re-submitted set in lower case, in place', () => {
@@ -63,19 +63,18 @@ describe('findOrderString', () => {
     expect(o.text).toBe('ABbC')
   })
 
-  it('ignores repeats when grading the order', () => {
-    // A repeat is wasted time, not a scan-order mistake — the set was already
-    // found in the right place.
-    const clean = findOrderString(sequence([0, 1, 2]))!
-    const withDup = findOrderString([found(1000, 0), dup(1500, 0), found(2000, 1), found(3000, 2)])!
-    expect(withDup.grade).toBe(clean.grade)
-    expect(withDup.displaced).toBe(clean.displaced)
+  it('does not let a repeat spoil a clean sweep', () => {
+    // Re-finding a set is wasted time, not an ordering mistake — and scan
+    // order, the metric of record, ignores repeats too.
+    const o = findOrderString([found(1000, 0), dup(1500, 0), found(2000, 1), found(3000, 2)])!
+    expect(o.text).toBe('AaBC')
+    expect(o.perfect).toBe(true)
   })
 
   it('handles a partial game, where the player gave up', () => {
     const o = findOrderString(sequence([0, 2, 4]))!
     expect(o.text).toBe('ACE')
-    expect(o.grade).toBe('perfect') // what they did find, they found in order
+    expect(o.perfect).toBe(true) // what they found, they found in order
   })
 
   it('is null when nothing was found', () => {
@@ -83,10 +82,10 @@ describe('findOrderString', () => {
     expect(findOrderString([done(1000, false, 5000)])).toBeNull()
   })
 
-  it('handles a single find', () => {
+  it('treats a single find as perfect', () => {
     const o = findOrderString(sequence([3]))!
     expect(o.text).toBe('D')
-    expect(o.grade).toBe('perfect')
+    expect(o.perfect).toBe(true)
   })
 
   it('letters beyond F for a board with many sets', () => {
