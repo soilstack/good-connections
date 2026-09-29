@@ -71,6 +71,20 @@ describe('findOrderString', () => {
     expect(o.perfect).toBe(true)
   })
 
+  it('does not let a repeat spoil a clean REVERSE sweep either', () => {
+    // Same rule in both directions: the repeat is shown, but only first finds
+    // decide whether the sweep was clean.
+    const o = findOrderString([found(1000, 3), dup(1500, 3), found(2000, 2), found(3000, 1), found(4000, 0)])!
+    expect(o.text).toBe('DdCBA')
+    expect(o.perfect).toBe(true)
+  })
+
+  it('still fails a reverse sweep that is genuinely out of order', () => {
+    const o = findOrderString([found(1000, 3), dup(1500, 3), found(2000, 1), found(3000, 2), found(4000, 0)])!
+    expect(o.text).toBe('DdBCA')
+    expect(o.perfect).toBe(false)
+  })
+
   it('handles a partial game, where the player gave up', () => {
     const o = findOrderString(sequence([0, 2, 4]))!
     expect(o.text).toBe('ACE')
