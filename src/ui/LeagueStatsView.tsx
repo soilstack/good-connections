@@ -155,8 +155,16 @@ export function LeagueStatsView({ leagueId, mode, currentUserId, onSelectMember 
               <li key={i} className="member-row">
                 <span className="member-name">{n.label}</span>
                 <span className="member-detail">
-                  {n.displayName} · {n.unit === 'time' ? formatTime(n.value) : n.value} ·{' '}
-                  {n.puzzleDate}
+                  {n.displayName} ·{' '}
+                  {n.unit === 'time'
+                    ? formatTime(n.value)
+                    : n.unit === 'percent'
+                      ? `${Math.round(n.value * 100)}%`
+                      : n.value}{' '}
+                  ·{' '}
+                  {/* A per-game award names its day; one earned across a whole
+                      history says how many games it averages over instead. */}
+                  {n.puzzleDate ?? `${n.games ?? 0} game${n.games === 1 ? '' : 's'}`}
                 </span>
               </li>
             ))}

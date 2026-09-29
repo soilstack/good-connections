@@ -1,5 +1,5 @@
 import type { Board } from '../game/board'
-import { matchHighlights } from '../game/telemetry'
+import { ditheringMs, findOrderString, matchHighlights, type FindOrder } from '../game/telemetry'
 import type { LeaderboardRow } from '../lib/leagues'
 import { Card } from './Card'
 import { formatTime, setLabel } from './format'
@@ -21,6 +21,15 @@ interface Entry {
   isYou: boolean
   hardest: { label: string; gapMs: number } | null
   last: { label: string; atMs: number } | null
+  order: FindOrder | null
+  /** Mode C: how long they sat on a finished board before pressing Done. */
+  ditheringMs: number | null
+}
+
+const ORDER_TITLE: Record<FindOrder['grade'], string> = {
+  perfect: 'Found in exact scan order',
+  near: 'One set found out of turn',
+  jumbled: 'Two or more sets found out of turn',
 }
 
 /** The set index most players share, if enough of them do to be worth saying. */
@@ -100,6 +109,8 @@ export function MatchSummary({
       gapMs: high.hardest.sincePrevMs,
     },
     last: high.last && { label: setLabel(high.last.setIndex), atMs: high.last.atMs },
+    order: findOrderString(row.events),
+    ditheringMs: ditheringMs(row.events),
   }))
   if (entries.every((e) => e.last === null)) return null
 
@@ -149,9 +160,18 @@ export function MatchSummary({
                     </>
                   )}
                   last <b>{e.last.label}</b> at {formatTime(e.last.atMs)}
+                  {e.ditheringMs !== null && <> · sat on it {formatTime(e.ditheringMs)}</>}
                 </>
               )}
             </span>
+            {/* The order they fell in. Green = a clean scan, amber = one set
+                taken out of turn, red = genuinely jumbled. A lower-case letter
+                is a set re-submitted after it had already been found. */}
+            {e.order && (
+              <span className={`order-string is-${e.order.grade}`} title={ORDER_TITLE[e.order.grade]}>
+                {e.order.text}
+              </span>
+            )}
           </li>
         ))}
       </ol>

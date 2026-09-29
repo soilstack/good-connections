@@ -4,6 +4,7 @@ import { timeSpread, type TimeSpread } from '../game/pace'
 import { zonedDateISO } from './time'
 import {
   deriveStats,
+  scanOrderScore,
   summarisePlayer,
   type GameRecord,
   type GameStats,
@@ -227,8 +228,11 @@ export interface NotableRecord {
   label: string
   displayName: string
   value: number
-  unit: 'count' | 'time'
-  puzzleDate: string
+  unit: 'count' | 'time' | 'percent'
+  /** The game it happened in, or null for an award earned across many games. */
+  puzzleDate: string | null
+  /** Set for a whole-history award: how many games it was averaged over. */
+  games?: number
 }
 
 export interface LeagueStats {
@@ -291,6 +295,8 @@ export async function getLeagueStats(leagueId: string, mode: Mode): Promise<Leag
     date: r.puzzle_date,
     setCount: r.total_sets,
     stats: deriveStats({ events: r.events } as GameRecord),
+    // Null on a game with too few finds for the number to mean anything.
+    scan: scanOrderScore(r.events),
   }))
   const completed = games.filter((g) => g.stats.completed && g.stats.totalTimeMs !== null)
 
@@ -359,6 +365,47 @@ export async function getLeagueStats(leagueId: string, mode: Mode): Promise<Leag
     notable('Most premature “done”s', 'count', (g) => g.stats.falseDones),
     notable('Most time lost to penalties', 'time', (g) => g.stats.penaltyMs),
   ].filter((n): n is NotableRecord => n !== null)
+
+  // Two awards that belong to a player rather than to a single game: who works
+  // the board most like an exhaustive scanner, and who works it least like one.
+  //
+  // "Chaotic" is deliberately not framed as a failing. A low scan-order rate
+  // means finding sets against the canonical sweep, which is a different way of
+  // reading the board, not a worse one.
+  const scanByUser = new Map<string, { name: string; total: number; n: number }>()
+  for (const g of games) {
+    if (g.scan === null) continue
+    const cur = scanByUser.get(g.userId) ?? { name: g.name, total: 0, n: 0 }
+    cur.total += g.scan.inOrderRate
+    cur.n++
+    scanByUser.set(g.userId, cur)
+  }
+  const scanRanked = [...scanByUser.values()]
+    .map((v) => ({ name: v.name, rate: v.total / v.n, games: v.n }))
+    .sort((a, b) => b.rate - a.rate)
+  // Needs at least two players, or "most" is just "the only one".
+  if (scanRanked.length >= 2) {
+    const top = scanRanked[0]!
+    const bottom = scanRanked[scanRanked.length - 1]!
+    notables.push(
+      {
+        label: 'Most robotic (closest to a clean scan)',
+        displayName: top.name,
+        value: top.rate,
+        unit: 'percent',
+        puzzleDate: null,
+        games: top.games,
+      },
+      {
+        label: 'Most chaotic (finds them in their own order)',
+        displayName: bottom.name,
+        value: bottom.rate,
+        unit: 'percent',
+        puzzleDate: null,
+        games: bottom.games,
+      },
+    )
+  }
 
   return { mode, topSolves, fastestBySetCount, members, notables }
 }

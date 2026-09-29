@@ -1,13 +1,9 @@
 /**
- * Name a set by its position in the board's solution: A, B, C…
- *
- * The letter is a label, not a hint — it says nothing about which cards the set
- * is made of. It is worth having because every player in a league slot gets the
- * identical board, so the same letter means the same set for everyone.
+ * Set naming lives in game/telemetry, because the find-order string is built
+ * from it and `game/` must not import from `ui/`. Re-exported here so the UI
+ * keeps its single import point for formatting helpers.
  */
-export function setLabel(setIndex: number): string {
-  return String.fromCharCode(65 + (setIndex % 26))
-}
+export { setLabel } from '../game/telemetry'
 
 /** Format a duration in ms as m:ss (or m:ss.t with tenths). */
 export function formatTime(ms: number, tenths = false): string {

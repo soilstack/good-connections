@@ -445,6 +445,104 @@ export function scanOrderScore(events: readonly TelemetryEvent[]): ScanOrderScor
 }
 
 /**
+ * Name a set by its position in the board's solution: A, B, C…
+ *
+ * The letter is a label, not a hint — it says nothing about which cards the set
+ * is made of. It is worth having because every player in a league slot gets the
+ * identical board, so the same letter means the same set for everyone.
+ *
+ * Lives here rather than in the UI because the find-order string below is built
+ * from it, and `game/` must not import from `ui/`. ui/format re-exports it, so
+ * there is still exactly one definition.
+ */
+export function setLabel(setIndex: number): string {
+  return String.fromCharCode(65 + (setIndex % 26))
+}
+
+/** How far a player's find order strayed from the board's canonical scan order. */
+export type OrderGrade = 'perfect' | 'near' | 'jumbled'
+
+export interface FindOrder {
+  /**
+   * The finds in the order they happened, e.g. "ABCFDE". A set the player
+   * re-submitted after already finding it appears as a lower-case letter in
+   * place, e.g. "ABbC" — wasted effort, visible without disturbing the reading
+   * of the order itself.
+   */
+  text: string
+  /**
+   * How many sets sit out of place: the count that would have to be lifted out
+   * and reinserted to leave a canonical scan.
+   */
+  displaced: number
+  grade: OrderGrade
+}
+
+/**
+ * The find-order string for one game.
+ *
+ * Graded by how many sets are DISPLACED (found length minus the longest
+ * increasing subsequence), not by counting inversions. The two disagree in a way
+ * that matters: "ABCFDE" is one set taken early but inverts two pairs, while a
+ * neighbouring swap "BACDEF" inverts only one. Judged by inversions the tidier
+ * sequence would score worse; judged by displacement both are "one set out of
+ * turn", which is what a player actually did.
+ *
+ * Repeats never affect the grade. Re-finding a set is wasted time, not a
+ * scan-order mistake — it was already found in its proper place.
+ */
+export function findOrderString(events: readonly TelemetryEvent[]): FindOrder | null {
+  const parts: string[] = []
+  const order: number[] = []
+  for (const ev of events) {
+    if (ev.type === 'set_valid') {
+      parts.push(setLabel(ev.payload.setIndex))
+      order.push(ev.payload.setIndex)
+    } else if (ev.type === 'set_duplicate') {
+      parts.push(setLabel(ev.payload.setIndex).toLowerCase())
+    }
+  }
+  if (order.length === 0) return null
+
+  // Longest increasing subsequence, O(n²) over at most ~14 sets.
+  const best = order.map(() => 1)
+  for (let i = 1; i < order.length; i++) {
+    for (let j = 0; j < i; j++) {
+      if (order[j]! < order[i]!) best[i] = Math.max(best[i]!, best[j]! + 1)
+    }
+  }
+  const displaced = order.length - Math.max(...best)
+  return {
+    text: parts.join(''),
+    displaced,
+    grade: displaced === 0 ? 'perfect' : displaced === 1 ? 'near' : 'jumbled',
+  }
+}
+
+/**
+ * Mode C only: the gap between finding the last set and pressing "Done"
+ * successfully — how long the player sat there unsure they were finished.
+ *
+ * Premature dones are excluded by construction: only the successful press ends
+ * the window, and any premature one necessarily happened before the last set was
+ * found (a press with every set found is what makes it successful). So no
+ * penalty can fall inside the window either, and the figure is clean.
+ *
+ * Null in Modes A and B, which end themselves the moment the last set is found
+ * and so have no dithering to measure.
+ */
+export function ditheringMs(events: readonly TelemetryEvent[]): number | null {
+  let lastSetMs: number | null = null
+  for (const ev of events) {
+    if (ev.type === 'set_valid') lastSetMs = ev.t_ms
+    else if (ev.type === 'done_attempt' && ev.payload.complete) {
+      return lastSetMs === null ? null : Math.max(0, ev.t_ms - lastSetMs)
+    }
+  }
+  return null
+}
+
+/**
  * Records matching a context and mode. The obvious place for a silent bug is a
  * query that forgets this filter, so `context` and `mode` are required and there
  * is no default — omitting either fails to compile. Modes are never mixed in one
