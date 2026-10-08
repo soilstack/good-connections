@@ -4,7 +4,9 @@ import { timeSpread, type TimeSpread } from '../game/pace'
 import { zonedDateISO } from './time'
 import {
   deriveStats,
+  finalSetGapMs,
   scanOrderScore,
+  timeToSetMs,
   summarisePlayer,
   type GameRecord,
   type GameStats,
@@ -369,7 +371,29 @@ export async function getLeagueStats(leagueId: string, mode: Mode): Promise<Leag
       ? { label, displayName: best.g.name, value: best.value, unit, puzzleDate: best.g.date }
       : null
   }
+  // The same, for awards where LOWER wins. Games the metric does not apply to
+  // return null and are skipped, rather than counting as a zero that would win.
+  const fastest = (
+    label: string,
+    metric: (g: (typeof games)[number]) => number | null,
+  ): NotableRecord | null => {
+    let best: { g: (typeof games)[number]; value: number } | null = null
+    for (const g of games) {
+      const v = metric(g)
+      if (v !== null && (best === null || v < best.value)) best = { g, value: v }
+    }
+    return best
+      ? { label, displayName: best.g.name, value: best.value, unit: 'time', puzzleDate: best.g.date }
+      : null
+  }
+
   const notables = [
+    // Mode A only: every board has six sets, so "the first five" is the same
+    // amount of work for everyone and the times compare.
+    mode === 'A'
+      ? fastest('Fastest to find the first 5 sets', (g) => timeToSetMs(g.stats, 5))
+      : null,
+    notable('Longest time to find the final set', 'time', (g) => finalSetGapMs(g.stats) ?? 0),
     notable('Most wrong guesses in a game', 'count', (g) => g.stats.errorCount),
     notable('Most repeat picks in a game', 'count', (g) => g.stats.duplicateCount),
     notable('Longest stall between sets', 'time', (g) =>

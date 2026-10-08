@@ -264,6 +264,37 @@ export function deriveStats(record: GameRecord): GameStats {
   }
 }
 
+/**
+ * When the nth set was found (1-based), in a COMPLETED game. Null for an
+ * abandoned game or one with fewer than n sets.
+ *
+ * Completed only, because a partial game's pace is not the same thing: someone
+ * who quits right after their fifth set would otherwise compete on equal terms
+ * with someone who went on to finish.
+ */
+export function timeToSetMs(stats: GameStats, n: number): number | null {
+  if (!stats.completed || stats.timeToFirstSetMs === null || stats.setsFound < n || n < 1) return null
+  let t = stats.timeToFirstSetMs
+  for (let i = 0; i < n - 1; i++) t += stats.setIntervalsMs[i]!
+  return t
+}
+
+/**
+ * How long the board's final set took to find: the gap from the previous find to
+ * the last one, or from the start when the board had a single set. Null unless
+ * the game was completed — in an abandoned game the final set was never found.
+ *
+ * Penalties are inside the gap, as they are in every timing here. In Mode C that
+ * is the honest figure: a premature "done" while hunting for the last set is part
+ * of how long that set took.
+ */
+export function finalSetGapMs(stats: GameStats): number | null {
+  if (!stats.completed || stats.timeToFirstSetMs === null) return null
+  return stats.setIntervalsMs.length > 0
+    ? stats.setIntervalsMs[stats.setIntervalsMs.length - 1]!
+    : stats.timeToFirstSetMs
+}
+
 /** One found set on the solve timeline, with what happened in the gap before it. */
 export interface TimelineStep {
   /** Index into the board's solution (set_valid payload). */
