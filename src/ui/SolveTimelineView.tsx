@@ -1,4 +1,4 @@
-import { deriveTimeline, type GameRecord, type TelemetryEvent } from '../game/telemetry'
+import { deriveTimeline, ditheringMs, type GameRecord, type TelemetryEvent } from '../game/telemetry'
 import { formatTime } from './format'
 
 /**
@@ -8,6 +8,10 @@ import { formatTime } from './format'
  */
 export function SolveTimelineView({ events }: { events: TelemetryEvent[] }) {
   const t = deriveTimeline({ events } as GameRecord)
+  // Mode C only: the wait between the last set and the winning "Done". Null in
+  // Modes A and B, which end themselves on the last set.
+  const dither = ditheringMs(events)
+  const lastAt = t.steps.length > 0 ? t.steps[t.steps.length - 1]!.atMs : null
 
   if (t.steps.length === 0) {
     return <p className="muted timeline-empty">No sets found.</p>
@@ -39,6 +43,15 @@ export function SolveTimelineView({ events }: { events: TelemetryEvent[] }) {
             {t.trailingDuplicates > 0 &&
               `${t.trailingFalse > 0 ? ' · ' : ''}${t.trailingDuplicates} repeat`}
           </span>
+        </li>
+      )}
+      {/* Last, because any attempts after the final set (the "after" row) happen
+          before the winning press. */}
+      {dither !== null && lastAt !== null && (
+        <li className="timeline-step timeline-done">
+          <span className="ts-num">Done</span>
+          <span className="ts-at">{formatTime(lastAt + dither, true)}</span>
+          <span className="ts-gap">+{formatTime(dither, true)} sat on it</span>
         </li>
       )}
     </ol>

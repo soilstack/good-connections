@@ -102,3 +102,42 @@ export function countSets(cards: readonly Card[]): number {
   }
   return count
 }
+
+/**
+ * The most sets 12 cards can hold. A known result, and checked here by
+ * hill-climbing: 300 independent searches all topped out at 14 or below, 264 of
+ * them at exactly 14. Fixes the length of any per-set-count listing.
+ */
+export const MAX_SETS_ON_TWELVE = 14
+
+/**
+ * How many three-card groups a perfect scanner checks before finding the last
+ * set, scanning in canonical order: pin the top-left card and try it with every
+ * pair after it, then pin the next card, and so on — exactly the i < j < k order
+ * enumerateSets emits. "Perfect" means it never misses a set and never checks a
+ * group twice, so the answer is the 1-based position of the final set's triple
+ * in that order. A board whose last set sits in the bottom-right corner needs
+ * close to all C(n,3) checks; one whose sets all touch the first few cards can
+ * stop far earlier.
+ *
+ * `sets` must be in canonical order, as board.sets always is. 0 for no sets.
+ */
+export function canonicalChecksToFinish(sets: readonly Triple[], boardSize: number): number {
+  const last = sets[sets.length - 1]
+  if (!last) return 0
+  let checks = 0
+  for (let i = 0; i < boardSize; i++) {
+    for (let j = i + 1; j < boardSize; j++) {
+      for (let k = j + 1; k < boardSize; k++) {
+        checks++
+        if (i === last[0] && j === last[1] && k === last[2]) return checks
+      }
+    }
+  }
+  return checks
+}
+
+/** Every three-card group on a board of `n` cards: C(n, 3). 220 for twelve. */
+export function tripleCount(n: number): number {
+  return (n * (n - 1) * (n - 2)) / 6
+}

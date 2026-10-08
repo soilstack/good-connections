@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { paceSeries, timeSpread } from './pace'
+import { paceSeries, percentile, timeSpread } from './pace'
 import type { TelemetryEvent } from './telemetry'
 
 /** A set_valid at t, found in solution slot `idx`. */
@@ -141,5 +141,45 @@ describe('timeSpread', () => {
     const input = [30_000, 10_000, 20_000]
     timeSpread(input)
     expect(input).toEqual([30_000, 10_000, 20_000])
+  })
+})
+
+describe('percentile', () => {
+  it('matches the spreadsheet definition (PERCENTILE.INC)', () => {
+    // =PERCENTILE.INC({10,20,30,40,50}, 0.95) = 48
+    expect(percentile([10, 20, 30, 40, 50], 0.95)).toBeCloseTo(48)
+    expect(percentile([10, 20, 30, 40, 50], 0.5)).toBe(30)
+  })
+
+  it('takes the mean of the middle pair for an even-length median', () => {
+    expect(percentile([10, 20, 30, 40], 0.5)).toBe(25)
+  })
+
+  it('returns the only value for a single element', () => {
+    expect(percentile([42], 0.5)).toBe(42)
+    expect(percentile([42], 0.95)).toBe(42)
+  })
+})
+
+describe('timeSpread — median and 95th percentile', () => {
+  it('reports the median, unmoved by one disastrous game', () => {
+    const s = timeSpread([60_000, 62_000, 64_000, 66_000, 600_000])!
+    expect(s.medianMs).toBe(64_000)
+    expect(s.meanMs).toBeGreaterThan(160_000) // the mean is dragged way up
+  })
+
+  it('puts the 95th percentile just short of the worst time', () => {
+    // 21 games, 1s apart from 60s: rank 0.95 * 20 = 19 exactly -> the 20th.
+    const times = Array.from({ length: 21 }, (_, i) => 60_000 + i * 1_000)
+    const s = timeSpread(times)!
+    expect(s.p95Ms).toBe(79_000)
+    expect(s.worstMs).toBe(80_000)
+  })
+
+  it('does not care what order the times arrive in', () => {
+    const a = timeSpread([30_000, 10_000, 20_000])!
+    const b = timeSpread([10_000, 20_000, 30_000])!
+    expect(a.medianMs).toBe(b.medianMs)
+    expect(a.p95Ms).toBe(b.p95Ms)
   })
 })

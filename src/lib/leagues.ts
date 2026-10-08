@@ -201,6 +201,9 @@ export async function getLeaderboard(leagueId: string, puzzleDate: string): Prom
 // --- league-wide records / member stats (all-time) -------------------------
 
 export interface SoloRecord {
+  /** Who holds it. Display names are not unique, so matching "is this mine?"
+   * has to go by id. */
+  userId: string
   displayName: string
   timeMs: number
   puzzleDate: string
@@ -303,13 +306,23 @@ export async function getLeagueStats(leagueId: string, mode: Mode): Promise<Leag
   const topSolves: SoloRecord[] = [...completed]
     .sort((a, b) => a.stats.totalTimeMs! - b.stats.totalTimeMs!)
     .slice(0, 3)
-    .map((g) => ({ displayName: g.name, timeMs: g.stats.totalTimeMs!, puzzleDate: g.date }))
+    .map((g) => ({
+      userId: g.userId,
+      displayName: g.name,
+      timeMs: g.stats.totalTimeMs!,
+      puzzleDate: g.date,
+    }))
 
   const byCount = new Map<number, SoloRecord>()
   for (const g of completed) {
     const cur = byCount.get(g.setCount)
     if (!cur || g.stats.totalTimeMs! < cur.timeMs) {
-      byCount.set(g.setCount, { displayName: g.name, timeMs: g.stats.totalTimeMs!, puzzleDate: g.date })
+      byCount.set(g.setCount, {
+        userId: g.userId,
+        displayName: g.name,
+        timeMs: g.stats.totalTimeMs!,
+        puzzleDate: g.date,
+      })
     }
   }
   const fastestBySetCount = [...byCount.entries()]

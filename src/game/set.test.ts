@@ -6,9 +6,11 @@ import {
   enumerateSets,
   enumerateSetsBrute,
   countSets,
+  canonicalChecksToFinish,
+  tripleCount,
   type Triple,
 } from './set'
-import { mulberry32, shuffle } from './board'
+import { generateModeA, mulberry32, shuffle } from './board'
 
 // Total number of sets in a complete 81-card deck is a known constant: 1080.
 const SETS_IN_FULL_DECK = 1080
@@ -161,5 +163,59 @@ describe('set enumeration', () => {
     expect(countSets(board)).toBe(0)
     expect(enumerateSets(board)).toEqual([])
     expect(enumerateSetsBrute(board)).toEqual([])
+  })
+})
+
+describe('canonicalChecksToFinish', () => {
+  it('counts the first group as one check', () => {
+    expect(canonicalChecksToFinish([[0, 1, 2]], 12)).toBe(1)
+  })
+
+  it('needs every check when the last set is the final group', () => {
+    expect(canonicalChecksToFinish([[0, 1, 2], [9, 10, 11]], 12)).toBe(220)
+    expect(tripleCount(12)).toBe(220)
+  })
+
+  it('stops at the LAST set, not the first', () => {
+    // Count the target's position by walking the scan, rather than trusting
+    // hand arithmetic for a mid-board group.
+    let n = 0
+    let at = -1
+    for (let i = 0; i < 12; i++)
+      for (let j = i + 1; j < 12; j++)
+        for (let k = j + 1; k < 12; k++) {
+          n++
+          if (i === 1 && j === 4 && k === 7) at = n
+        }
+    expect(canonicalChecksToFinish([[0, 1, 2], [1, 4, 7]], 12)).toBe(at)
+  })
+
+  it('is zero for a board with no sets', () => {
+    expect(canonicalChecksToFinish([], 12)).toBe(0)
+  })
+
+  it('agrees with enumerateSets on real boards', () => {
+    // The count must land exactly on the final set enumerateSets reports.
+    const rng = mulberry32(2026)
+    for (let trial = 0; trial < 50; trial++) {
+      const board = generateModeA(rng)
+      const sets = enumerateSets(board.cards)
+      const checks = canonicalChecksToFinish(sets, 12)
+      expect(checks).toBeGreaterThan(0)
+      expect(checks).toBeLessThanOrEqual(220)
+      // Brute-force the same walk and confirm the k-th group IS the last set.
+      let n = 0
+      let hit: number[] | null = null
+      outer: for (let i = 0; i < 12; i++)
+        for (let j = i + 1; j < 12; j++)
+          for (let k = j + 1; k < 12; k++) {
+            n++
+            if (n === checks) {
+              hit = [i, j, k]
+              break outer
+            }
+          }
+      expect(hit).toEqual(sets[sets.length - 1])
+    }
   })
 })

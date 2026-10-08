@@ -459,54 +459,78 @@ export function setLabel(setIndex: number): string {
   return String.fromCharCode(65 + (setIndex % 26))
 }
 
+/**
+ * How cleanly a game was played, read off the find-order string.
+ *
+ * - perfect        — one clean sweep, no repeats, no false sets: ABCDEF
+ * - almost-perfect — one clean sweep with repeats but no false sets: ABCcDEF
+ * - other          — anything else
+ *
+ * "Clean sweep" is the same test as always: first finds in canonical scan order
+ * or its exact reverse. Only a COMPLETED game can earn either label — someone who
+ * gave up having found A, C and E in order did not play perfectly, however tidy
+ * the letters look.
+ */
+export type OrderRating = 'perfect' | 'almost-perfect' | 'other'
+
 export interface FindOrder {
   /**
-   * The finds in the order they happened, e.g. "ABCFDE". A set the player
-   * re-submitted after already finding it appears as a lower-case letter in
-   * place, e.g. "ABbC" — wasted effort, visible without disturbing the reading
-   * of the order itself.
+   * Everything the player submitted, in order. Upper case is a new find; lower
+   * case is a set re-submitted after it was already found; "x" is a false set —
+   * three cards that were not a set at all. "ABCbDxxEF" is: found A, B, C,
+   * re-picked B, found D, two false sets, then found E and F.
+   *
+   * "x" cannot collide with a repeat letter: 12 cards hold at most 14 sets, so
+   * set letters stop at N.
    */
   text: string
-  /**
-   * True when the sets fell in one clean sweep: canonical scan order, or its
-   * exact reverse. Working the board bottom-up is just as systematic as working
-   * it top-down — only the direction differs — so both earn the mark.
-   *
-   * Repeats do not break it: re-finding a set is wasted time, not an ordering
-   * mistake, and scanOrderScore — the one metric for how systematic a player is
-   * — ignores them too. Only the order of first finds counts.
-   */
-  perfect: boolean
+  rating: OrderRating
 }
 
 /**
  * The find-order string for one game.
  *
- * Deliberately a flag, not a grade. How far from canonical an order is has a
+ * Deliberately a rating, not a score. How far from canonical an order is has a
  * metric already — scanOrderScore — and a second scale here would be the same
- * fact told twice, on a different footing. This just answers "was it one clean
- * sweep, yes or no".
+ * fact told twice on a different footing.
  */
 export function findOrderString(events: readonly TelemetryEvent[]): FindOrder | null {
   const parts: string[] = []
   const order: number[] = []
+  let repeats = 0
+  let falseSets = 0
+  let completed = false
   for (const ev of events) {
     if (ev.type === 'set_valid') {
       parts.push(setLabel(ev.payload.setIndex))
       order.push(ev.payload.setIndex)
     } else if (ev.type === 'set_duplicate') {
       parts.push(setLabel(ev.payload.setIndex).toLowerCase())
+      repeats++
+    } else if (ev.type === 'set_invalid') {
+      parts.push('x')
+      falseSets++
+    } else if (ev.type === 'game_end') {
+      completed = ev.payload.reason === 'completed'
     }
   }
   if (order.length === 0) return null
 
+  // One clean sweep: first finds strictly ascending or strictly descending.
+  // Repeats and false sets never reach `order`, so they cannot bend it.
   let ascending = true
   let descending = true
   for (let i = 1; i < order.length; i++) {
     if (order[i]! < order[i - 1]!) ascending = false
     if (order[i]! > order[i - 1]!) descending = false
   }
-  return { text: parts.join(''), perfect: ascending || descending }
+  const sweep = ascending || descending
+
+  let rating: OrderRating = 'other'
+  if (completed && sweep && falseSets === 0) {
+    rating = repeats === 0 ? 'perfect' : 'almost-perfect'
+  }
+  return { text: parts.join(''), rating }
 }
 
 /**

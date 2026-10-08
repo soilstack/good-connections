@@ -207,8 +207,47 @@ describe('MatchSummary set reveal', () => {
     )
     expect(svg).toContain('set-reveal')
     expect(svg).toContain('Everyone has played')
-    // Two sets, three cards each.
-    expect(svg.match(/mini-card/g)?.length).toBe(6)
+    // Two sets, three cards each — counted inside the reveal only, since the
+    // full board below now has mini-cards of its own.
+    const reveal = svg.slice(svg.indexOf('set-reveal'), svg.indexOf('board-mini-sub'))
+    expect(reveal.match(/mini-card/g)?.length).toBe(6)
+  })
+
+  it('shows the whole board as dealt under the sets', () => {
+    const svg = renderToStaticMarkup(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      <MatchSummary rows={rows} currentUserId="MDS" board={board as any} reveal="all-played" />,
+    )
+    expect(svg).toContain('Today’s board')
+    const grid = svg.slice(svg.indexOf('class="board-mini"'))
+    expect(grid.match(/mini-card/g)?.length).toBe(12)
+  })
+
+  it('says how many checks a perfect top-left scan needs', () => {
+    // Last set is (3,4,5): 55 + 45 + 36 groups pinned on cards 0-2, then it is
+    // the very first group pinned on card 3 — 137 of the 220.
+    const svg = renderToStaticMarkup(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      <MatchSummary rows={rows} currentUserId="MDS" board={board as any} reveal="all-played" />,
+    )
+    expect(text(svg)).toContain('checks 137 of the 220 possible three-card groups')
+  })
+
+  it('keeps the board hidden behind the same gate as the sets', () => {
+    const svg = renderToStaticMarkup(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      <MatchSummary rows={rows} currentUserId="MDS" board={board as any} reveal={null} />,
+    )
+    expect(svg).not.toContain('board-mini')
+  })
+
+  it('titles a past day’s board without "today"', () => {
+    const svg = renderToStaticMarkup(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      <MatchSummary rows={rows} currentUserId="MDS" board={board as any} reveal="slot-closed" historic />,
+    )
+    expect(svg).toContain('The board')
+    expect(svg).not.toContain('Today’s board')
   })
 
   it('says the day is over when that was the reason', () => {
@@ -275,5 +314,58 @@ describe('canRevealSets — the viewer’s own completed board', () => {
         viewerCompleted: true,
       }),
     ).toBe('slot-closed')
+  })
+})
+
+describe('MatchSummary order-string remark', () => {
+  const finished = (finds: [number, number][], extra: TelemetryEvent[] = []) => {
+    const r = row('p', finds)
+    // keep game_end last
+    const end = r.events.pop()!
+    r.events.push(...extra.sort((x, y) => x.t_ms - y.t_ms), end)
+    r.events.sort((x, y) => x.t_ms - y.t_ms)
+    return r
+  }
+
+  it('labels a perfect game, bold and green', () => {
+    const html = renderToStaticMarkup(
+      <MatchSummary rows={[finished([[1_000, 0], [2_000, 1], [3_000, 2]])]} currentUserId="p" />,
+    )
+    expect(html).toContain('order-string is-perfect')
+    expect(text(html)).toContain('ABC (Perfect!)')
+  })
+
+  it('labels an almost-perfect game', () => {
+    const html = renderToStaticMarkup(
+      <MatchSummary
+        rows={[
+          finished(
+            [[1_000, 0], [2_000, 1], [3_000, 2]],
+            [{ t_ms: 2_500, type: 'set_duplicate', payload: { cards: [0, 1, 2], setIndex: 1 } }],
+          ),
+        ]}
+        currentUserId="p"
+      />,
+    )
+    expect(html).toContain('order-string is-almost-perfect')
+    expect(text(html)).toContain('ABbC (Almost perfect!)')
+  })
+
+  it('gives no remark, in grey, when there was a false set', () => {
+    const html = renderToStaticMarkup(
+      <MatchSummary
+        rows={[
+          finished(
+            [[1_000, 0], [2_000, 1], [3_000, 2]],
+            [{ t_ms: 1_500, type: 'set_invalid', payload: { cards: [0, 1, 2] } }],
+          ),
+        ]}
+        currentUserId="p"
+      />,
+    )
+    expect(html).toContain('order-string is-other')
+    expect(text(html)).toContain('AxBC')
+    expect(html).not.toContain('Perfect!')
+    expect(html).not.toContain('Almost perfect!')
   })
 })

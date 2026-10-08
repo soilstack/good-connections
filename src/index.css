@@ -1045,9 +1045,10 @@ body {
   padding: 10px;
   max-width: 340px;
 }
-/* The find-order string, e.g. ABCfDE. Monospace so the letters line up between
-   players and a repeat is obvious down the column. Green marks a clean scan and
-   nothing else is coloured — the letters themselves say what happened. */
+/* The find-order string, e.g. ABCbDxxEF. Monospace so the letters line up
+   between players and a repeat or an x is obvious down the column. Perfect and
+   almost-perfect games are green AND bold, so they stand out by weight as well
+   as colour; everything else stays grey. */
 .order-string {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 13px;
@@ -1055,8 +1056,47 @@ body {
   margin-top: 3px;
   color: var(--muted);
 }
-.order-string.is-perfect {
+.order-string.is-perfect,
+.order-string.is-almost-perfect {
   color: var(--ok);
+  font-weight: 700;
+}
+/* The remark is words, not letters: body font, no tracking. */
+.order-remark {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  letter-spacing: 0;
+  margin-left: 8px;
+}
+
+/* A set count nobody has solved yet: kept in the list so the gaps show, but
+   compact and quiet so fourteen rows do not swamp the page. */
+.record-row.is-empty {
+  padding-top: 6px;
+  padding-bottom: 6px;
+  opacity: 0.55;
+}
+.record-row.is-empty .record-name {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+/* Congratulation on the results page when the day's game holds a record. */
+.record-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--ok);
+  background: color-mix(in srgb, var(--ok) 12%, var(--surface));
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.35;
+}
+.record-banner-icon {
+  font-size: 24px;
+  line-height: 1;
 }
 
 /* ---- day picker on the results page ---- */
@@ -1137,8 +1177,8 @@ body {
 .set-reveal {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 10px;
-  margin-top: 12px;
+  gap: 6px 10px;
+  margin-top: 10px;
 }
 .set-reveal-item {
   display: flex;
@@ -1153,8 +1193,24 @@ body {
 }
 .set-reveal .missed-set {
   gap: 4px;
-  padding: 6px;
+  padding: 5px;
   max-width: none;
+}
+
+/* The full board as dealt: same 3 x 4 layout as in play, small enough that it
+   and the six sets above fit one iPhone screen together. */
+.board-mini-sub {
+  font-size: 13px;
+  margin: 2px 0 8px;
+}
+.board-mini {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+  max-width: 210px;
+}
+.board-mini .mini-card .set-card {
+  border-radius: 7px;
 }
 .summary-actions {
   display: flex;

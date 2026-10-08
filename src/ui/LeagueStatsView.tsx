@@ -1,36 +1,32 @@
-import { useEffect, useState } from 'react'
 import type { Mode } from '../game/board'
-import { getLeagueStats, type LeagueStats } from '../lib/leagues'
+import { MAX_SETS_ON_TWELVE } from '../game/set'
+import type { LeagueStats, SoloRecord } from '../lib/leagues'
 import { formatTime } from './format'
 
 interface Props {
-  leagueId: string
+  /**
+   * Fetched by the parent, which also needs it to decide whether today's game
+   * earned a congratulation — one query serves both. Null while loading.
+   */
+  stats: LeagueStats | null
+  error?: string | null
   mode: Mode
   currentUserId: string
   /** Open a member's performance page. */
   onSelectMember: (userId: string) => void
 }
 
-export function LeagueStatsView({ leagueId, mode, currentUserId, onSelectMember }: Props) {
-  const [stats, setStats] = useState<LeagueStats | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    let active = true
-    getLeagueStats(leagueId, mode)
-      .then((s) => {
-        if (active) setStats(s)
-      })
-      .catch((e) => {
-        if (active) setError(e instanceof Error ? e.message : String(e))
-      })
-    return () => {
-      active = false
-    }
-  }, [leagueId, mode])
-
+export function LeagueStatsView({ stats, error, mode, currentUserId, onSelectMember }: Props) {
   if (error) return <p className="auth-error">{error}</p>
   if (!stats) return <p className="muted">Loading records…</p>
+
+  // Every possible set count, 1..14, whether or not anyone has played one yet,
+  // so the gaps are visible: an empty row is a record still up for grabs.
+  const byCount = new Map(stats.fastestBySetCount.map(({ setCount, record }) => [setCount, record]))
+  const countRows: { setCount: number; record: SoloRecord | undefined }[] = Array.from(
+    { length: MAX_SETS_ON_TWELVE },
+    (_, i) => ({ setCount: i + 1, record: byCount.get(i + 1) }),
+  )
 
   return (
     <section className="league-stats">
@@ -50,20 +46,27 @@ export function LeagueStatsView({ leagueId, mode, currentUserId, onSelectMember 
             ))}
           </ol>
         )
-      ) : stats.fastestBySetCount.length === 0 ? (
-        <p className="muted">No completed solves yet.</p>
       ) : (
         <ol className="record-list">
-          {stats.fastestBySetCount.map(({ setCount, record }) => (
-            <li key={setCount} className="record-row">
-              <span className="record-rank">
-                {setCount} set{setCount === 1 ? '' : 's'}
-              </span>
-              <span className="record-name">{record.displayName}</span>
-              <span className="record-meta">{record.puzzleDate}</span>
-              <span className="record-time">{formatTime(record.timeMs, true)}</span>
-            </li>
-          ))}
+          {countRows.map(({ setCount, record }) =>
+            record ? (
+              <li key={setCount} className="record-row">
+                <span className="record-rank">
+                  {setCount} set{setCount === 1 ? '' : 's'}
+                </span>
+                <span className="record-name">{record.displayName}</span>
+                <span className="record-meta">{record.puzzleDate}</span>
+                <span className="record-time">{formatTime(record.timeMs, true)}</span>
+              </li>
+            ) : (
+              <li key={setCount} className="record-row is-empty">
+                <span className="record-rank">
+                  {setCount} set{setCount === 1 ? '' : 's'}
+                </span>
+                <span className="record-name">—</span>
+              </li>
+            ),
+          )}
         </ol>
       )}
 
@@ -83,8 +86,10 @@ export function LeagueStatsView({ leagueId, mode, currentUserId, onSelectMember 
                   <tr>
                     <th scope="col">Player</th>
                     <th scope="col">Best</th>
-                    <th scope="col">Avg</th>
-                    <th scope="col">Worst</th>
+                    <th scope="col">Median</th>
+                    <th scope="col" title="95th percentile — a bad day, not the single worst">
+                      Worst95
+                    </th>
                     <th scope="col" title="Standard deviation — lower is more consistent">
                       ±
                     </th>
@@ -104,8 +109,8 @@ export function LeagueStatsView({ leagueId, mode, currentUserId, onSelectMember 
                           {m.userId === currentUserId ? ' (you)' : ''}
                         </th>
                         <td>{formatTime(m.spread!.bestMs)}</td>
-                        <td>{formatTime(m.spread!.meanMs)}</td>
-                        <td>{formatTime(m.spread!.worstMs)}</td>
+                        <td>{formatTime(m.spread!.medianMs)}</td>
+                        <td>{formatTime(m.spread!.p95Ms)}</td>
                         <td>{formatTime(m.spread!.stdDevMs)}</td>
                         <td>{m.spread!.count}</td>
                       </tr>
@@ -116,8 +121,9 @@ export function LeagueStatsView({ leagueId, mode, currentUserId, onSelectMember 
           )}
           <p className="muted timeline-hint">
             Completed games only — an abandoned game is shorter than a finished one, so counting
-            them would make giving up look fast. ± is the standard deviation: lower means more
-            consistent.
+            them would make giving up look fast. Worst95 is the 95th percentile: a bad day, without
+            letting one disaster define anyone (with few games it sits near the worst). ± is the
+            standard deviation: lower means more consistent.
           </p>
         </>
       )}

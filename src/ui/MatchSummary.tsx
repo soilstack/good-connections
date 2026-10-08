@@ -1,4 +1,5 @@
 import type { Board } from '../game/board'
+import { canonicalChecksToFinish, tripleCount } from '../game/set'
 import { ditheringMs, findOrderString, matchHighlights, type FindOrder } from '../game/telemetry'
 import type { LeaderboardRow } from '../lib/leagues'
 import { Card } from './Card'
@@ -158,18 +159,39 @@ export function MatchSummary({
                 </>
               )}
             </span>
-            {/* The order they fell in. Green only when it was a clean scan;
-                everything else reads as ordinary text, since how far from
-                canonical an order is already has a metric of its own. A
-                lower-case letter is a set re-submitted after being found. */}
+            {/* Everything they submitted, in order: upper case a new find,
+                lower case a repeat, x a false set. Green and bold only for a
+                perfect or almost-perfect game; everything else in grey. */}
             {e.order && (
-              <span className={`order-string${e.order.perfect ? ' is-perfect' : ''}`}>
+              <span className={`order-string is-${e.order.rating}`}>
                 {e.order.text}
+                {e.order.rating !== 'other' && (
+                  <span className="order-remark">
+                    {e.order.rating === 'perfect' ? '(Perfect!)' : '(Almost perfect!)'}
+                  </span>
+                )}
               </span>
             )}
           </li>
         ))}
       </ol>
+
+      <p className="muted timeline-hint">
+        Sets are lettered by their place in the board’s solution — the same letter is the same set
+        for everyone.
+        {/* Three states, not two: the gate can be open while the board is
+            still unavailable (a finished day whose seed cannot be fetched),
+            and saying "hidden while the day is live" there would be a lie. */}
+        {!reveal
+          ? ' The cards stay hidden while the day is live.'
+          : board
+            ? reveal === 'all-played'
+              ? ' Everyone has played, so here they are.'
+              : reveal === 'slot-closed'
+                ? ' The day is over, so here they are.'
+                : ' You found them all, so here they are.'
+            : ''}
+      </p>
 
       {reveal && board && (
         <div className="set-reveal">
@@ -188,22 +210,30 @@ export function MatchSummary({
         </div>
       )}
 
-      <p className="muted timeline-hint">
-        Sets are lettered by their place in the board’s solution — the same letter is the same set
-        for everyone.
-        {/* Three states, not two: the gate can be open while the board is
-            still unavailable (a finished day whose seed cannot be fetched),
-            and saying "hidden while the day is live" there would be a lie. */}
-        {!reveal
-          ? ' The cards stay hidden while the day is live.'
-          : board
-            ? reveal === 'all-played'
-              ? ' Everyone has played, so here they are.'
-              : reveal === 'slot-closed'
-                ? ' The day is over, so here they are.'
-                : ' You found them all, so here they are.'
-            : ''}
-      </p>
+      {/* The whole board as it was dealt, under the same gate as the sets, laid
+          out exactly as in play so "top-left" means the same card it did then.
+          Sized so the six sets and the board fit one iPhone screen together. */}
+      {reveal && board && (
+        <>
+          <h2 className="section-label section-label-gap">
+            {historic ? 'The board' : 'Today’s board'}
+          </h2>
+          <p className="muted board-mini-sub">
+            A perfect scan from the top-left card checks{' '}
+            <b>{canonicalChecksToFinish(board.sets, board.cards.length)}</b> of the{' '}
+            {tripleCount(board.cards.length)} possible three-card groups before it finds the last
+            set.
+          </p>
+          <div className="board-mini" aria-label="The board as dealt">
+            {board.cards.map((c, ci) => (
+              <div className="mini-card" key={ci}>
+                <Card card={c} />
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
     </section>
   )
 }

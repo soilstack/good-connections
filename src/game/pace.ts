@@ -91,11 +91,34 @@ export function paceSeries(events: readonly TelemetryEvent[]): PaceSeries {
   return { vertices, risers, finish, penaltyMs }
 }
 
+/**
+ * The p-th percentile of an ASCENDING array, interpolating linearly between the
+ * two nearest ranks — the same definition as Excel's PERCENTILE.INC and numpy's
+ * default, so the number can be checked by hand in a spreadsheet. p = 0.5 is the
+ * ordinary median (the mean of the middle pair for an even count).
+ */
+export function percentile(sortedAsc: readonly number[], p: number): number {
+  const n = sortedAsc.length
+  if (n === 0) return NaN
+  const rank = p * (n - 1)
+  const lo = Math.floor(rank)
+  const hi = Math.ceil(rank)
+  return sortedAsc[lo]! + (sortedAsc[hi]! - sortedAsc[lo]!) * (rank - lo)
+}
+
 /** Best/worst/mean/spread over a set of solve times. */
 export interface TimeSpread {
   bestMs: number
   worstMs: number
   meanMs: number
+  /** The middle time. Unlike the mean, one disastrous game barely moves it. */
+  medianMs: number
+  /**
+   * 95th percentile: "a bad day", without letting the single worst game in a
+   * player's history define them. With fewer than ~20 games it sits close to the
+   * worst time, which is the honest answer for that little data.
+   */
+  p95Ms: number
   /** Population standard deviation (see note in {@link timeSpread}). */
   stdDevMs: number
   count: number
@@ -117,10 +140,13 @@ export function timeSpread(timesMs: readonly number[]): TimeSpread | null {
   const n = timesMs.length
   const mean = timesMs.reduce((a, b) => a + b, 0) / n
   const variance = timesMs.reduce((acc, t) => acc + (t - mean) ** 2, 0) / n
+  const sorted = [...timesMs].sort((a, b) => a - b)
   return {
-    bestMs: Math.min(...timesMs),
-    worstMs: Math.max(...timesMs),
+    bestMs: sorted[0]!,
+    worstMs: sorted[n - 1]!,
     meanMs: mean,
+    medianMs: percentile(sorted, 0.5),
+    p95Ms: percentile(sorted, 0.95),
     stdDevMs: Math.sqrt(variance),
     count: n,
   }

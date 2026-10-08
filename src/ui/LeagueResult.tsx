@@ -5,10 +5,13 @@ import {
   getLeaderboard,
   getLeagueDates,
   getLeagueRoster,
+  getLeagueStats,
   getPastPuzzleBoard,
   getTodayPuzzle,
   type LeaderboardRow,
+  type LeagueStats,
 } from '../lib/leagues'
+import { recordHeld, type RecordHeld } from '../lib/records'
 import { viewableDates } from '../lib/leagueDates'
 import { isSlotClosed, zonedDateISO } from '../lib/time'
 import { formatTime } from './format'
@@ -62,6 +65,10 @@ export function LeagueResult({
   // "everyone has played" reveal gate. Null while loading or unavailable.
   const [roster, setRoster] = useState<string[] | null>(null)
   const [board, setBoard] = useState<Board | null>(null)
+  // All-time league records. Fetched here rather than inside LeagueStatsView
+  // because the page header needs them too, to congratulate a record.
+  const [leagueStats, setLeagueStats] = useState<LeagueStats | null>(null)
+  const [statsError, setStatsError] = useState<string | null>(null)
   // Which day is on screen, and every day that may be looked at. `date` stays
   // null until the list arrives when the viewer hasn't played today, since in
   // that case the day to open is "the most recent finished one", not today.
@@ -90,6 +97,23 @@ export function LeagueResult({
       active = false
     }
   }, [leagueId])
+
+  // All-time stats. Per league, not per day, so switching days never refetches.
+  // This page only mounts once the just-finished game has been saved, so a
+  // record set a moment ago is already in what comes back.
+  useEffect(() => {
+    let active = true
+    getLeagueStats(leagueId, mode)
+      .then((st) => {
+        if (active) setLeagueStats(st)
+      })
+      .catch((e) => {
+        if (active) setStatsError(e instanceof Error ? e.message : String(e))
+      })
+    return () => {
+      active = false
+    }
+  }, [leagueId, mode])
 
   // Land on the newest day the viewer is allowed to see, once we know it.
   useEffect(() => {
@@ -169,6 +193,8 @@ export function LeagueResult({
   // The just-finished game's numbers belong to the day it was played, so they
   // disappear as soon as the viewer flicks back to an earlier one.
   const showOwnStats = stats && isToday
+  // Whether the viewer's game on the day on screen holds a league record.
+  const held = leagueStats && date ? recordHeld(leagueStats, mode, userId, date) : null
   const i = date === null ? -1 : viewable.indexOf(date)
   // viewable is newest-first, so "older" is forward through the array.
   const older = i >= 0 && i < viewable.length - 1 ? viewable[i + 1]! : null
@@ -245,6 +271,8 @@ export function LeagueResult({
           </button>
         </nav>
       )}
+
+      {held && <RecordBanner held={held} />}
 
       {showOwnStats && (
         <div className="stats-grid">
@@ -335,7 +363,8 @@ export function LeagueResult({
       )}
 
       <LeagueStatsView
-        leagueId={leagueId}
+        stats={leagueStats}
+        error={statsError}
         mode={mode}
         currentUserId={userId}
         onSelectMember={setViewing}
@@ -346,6 +375,37 @@ export function LeagueResult({
           Back to menu
         </button>
       </div>
+    </div>
+  )
+}
+
+const RANK_WORD = { 1: 'fastest', 2: 'second-fastest', 3: 'third-fastest' } as const
+
+/**
+ * The congratulation. Says what the record IS rather than calling it new: viewed
+ * on a later day it is a record the player still holds, which may not be new.
+ */
+export function RecordBanner({ held }: { held: RecordHeld }) {
+  const time = formatTime(held.timeMs, true)
+  return (
+    <div className="record-banner" role="status">
+      <span className="record-banner-icon" aria-hidden="true">
+        {held.kind === 'top-three' && held.rank !== 1 ? (held.rank === 2 ? '🥈' : '🥉') : '🏆'}
+      </span>
+      <span>
+        {held.kind === 'top-three' ? (
+          <>
+            <b>{time}</b> is the league’s <b>{RANK_WORD[held.rank]}</b> solve ever.
+          </>
+        ) : (
+          <>
+            {/* "an 8-set", "an 11-set": the article follows how the number
+                is said, not how it is written. */}
+            <b>{time}</b> is the league record for {held.setCount === 8 || held.setCount === 11 ? 'an' : 'a'}{' '}
+            <b>{held.setCount}-set</b> board.
+          </>
+        )}
+      </span>
     </div>
   )
 }
