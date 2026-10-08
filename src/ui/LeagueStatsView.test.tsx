@@ -78,7 +78,7 @@ describe('LeagueStatsView — Mode A solve times', () => {
       <LeagueStatsView stats={stats} mode="A" currentUserId="MDS" onSelectMember={noop} />,
     )
     const head = text(html.slice(html.indexOf('<thead'), html.indexOf('</thead>')))
-    expect(head).toContain('Player Best Median Worst95 ± Games')
+    expect(head).toContain('Player Best Med Worst ± Games')
     expect(text(html)).toContain('0:50 0:50 1:26 0:18 3') // best, median, p95, sd, games
   })
 })

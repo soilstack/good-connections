@@ -281,18 +281,17 @@ export function timeToSetMs(stats: GameStats, n: number): number | null {
 
 /**
  * How long the board's final set took to find: the gap from the previous find to
- * the last one, or from the start when the board had a single set. Null unless
- * the game was completed — in an abandoned game the final set was never found.
+ * the last one. Null unless the game was completed — in an abandoned game the
+ * final set was never found — and null on a one-set board, where the "final" set
+ * is also the first and the figure is really time-to-first-set in disguise.
  *
  * Penalties are inside the gap, as they are in every timing here. In Mode C that
  * is the honest figure: a premature "done" while hunting for the last set is part
  * of how long that set took.
  */
 export function finalSetGapMs(stats: GameStats): number | null {
-  if (!stats.completed || stats.timeToFirstSetMs === null) return null
-  return stats.setIntervalsMs.length > 0
-    ? stats.setIntervalsMs[stats.setIntervalsMs.length - 1]!
-    : stats.timeToFirstSetMs
+  if (!stats.completed || stats.setIntervalsMs.length === 0) return null
+  return stats.setIntervalsMs[stats.setIntervalsMs.length - 1]!
 }
 
 /** One found set on the solve timeline, with what happened in the gap before it. */

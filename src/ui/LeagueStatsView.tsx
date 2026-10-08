@@ -86,9 +86,9 @@ export function LeagueStatsView({ stats, error, mode, currentUserId, onSelectMem
                   <tr>
                     <th scope="col">Player</th>
                     <th scope="col">Best</th>
-                    <th scope="col">Median</th>
+                    <th scope="col" title="Median">Med</th>
                     <th scope="col" title="95th percentile — a bad day, not the single worst">
-                      Worst95
+                      Worst
                     </th>
                     <th scope="col" title="Standard deviation — lower is more consistent">
                       ±
@@ -104,7 +104,7 @@ export function LeagueStatsView({ stats, error, mode, currentUserId, onSelectMem
                         key={m.userId}
                         className={m.userId === currentUserId ? 'is-you' : undefined}
                       >
-                        <th scope="row">
+                        <th scope="row" title={m.displayName}>
                           {m.displayName}
                           {m.userId === currentUserId ? ' (you)' : ''}
                         </th>
@@ -121,8 +121,9 @@ export function LeagueStatsView({ stats, error, mode, currentUserId, onSelectMem
           )}
           <p className="muted timeline-hint">
             Completed games only — an abandoned game is shorter than a finished one, so counting
-            them would make giving up look fast. Worst95 is the 95th percentile: a bad day, without
-            letting one disaster define anyone (with few games it sits near the worst). ± is the
+            them would make giving up look fast. Med is the median. Worst is the 95th percentile: a bad
+            day, without letting one disaster define anyone (with few games it sits near the
+            very worst). ± is the
             standard deviation: lower means more consistent.
           </p>
         </>

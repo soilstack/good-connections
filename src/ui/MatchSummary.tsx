@@ -167,7 +167,7 @@ export function MatchSummary({
                 {e.order.text}
                 {e.order.rating !== 'other' && (
                   <span className="order-remark">
-                    {e.order.rating === 'perfect' ? '(Perfect!)' : '(Almost perfect!)'}
+                    {e.order.rating === 'perfect' ? 'Perfect Play!' : 'Almost perfect...sigh'}
                   </span>
                 )}
               </span>

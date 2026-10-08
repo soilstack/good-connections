@@ -332,7 +332,7 @@ describe('MatchSummary order-string remark', () => {
       <MatchSummary rows={[finished([[1_000, 0], [2_000, 1], [3_000, 2]])]} currentUserId="p" />,
     )
     expect(html).toContain('order-string is-perfect')
-    expect(text(html)).toContain('ABC (Perfect!)')
+    expect(text(html)).toContain('ABC Perfect Play!')
   })
 
   it('labels an almost-perfect game', () => {
@@ -348,7 +348,7 @@ describe('MatchSummary order-string remark', () => {
       />,
     )
     expect(html).toContain('order-string is-almost-perfect')
-    expect(text(html)).toContain('ABbC (Almost perfect!)')
+    expect(text(html)).toContain('ABbC Almost perfect...sigh')
   })
 
   it('gives no remark, in grey, when there was a false set', () => {
@@ -365,7 +365,7 @@ describe('MatchSummary order-string remark', () => {
     )
     expect(html).toContain('order-string is-other')
     expect(text(html)).toContain('AxBC')
-    expect(html).not.toContain('Perfect!')
-    expect(html).not.toContain('Almost perfect!')
+    expect(html).not.toContain('Perfect Play!')
+    expect(html).not.toContain('Almost perfect')
   })
 })

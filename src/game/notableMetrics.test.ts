@@ -43,9 +43,14 @@ describe('finalSetGapMs', () => {
     expect(finalSetGapMs(game([5_000, 12_000, 20_000, 31_000, 44_000, 90_000]))).toBe(46_000)
   })
 
-  it('is the whole time to first set on a one-set board', () => {
-    // The final set and the first set are the same set.
-    expect(finalSetGapMs(game([37_000]))).toBe(37_000)
+  it('ignores a one-set board', () => {
+    // The final set is also the first, so this would just be time-to-first-set
+    // competing in an award about the last one.
+    expect(finalSetGapMs(game([37_000]))).toBeNull()
+  })
+
+  it('counts from the second set onward', () => {
+    expect(finalSetGapMs(game([5_000, 37_000]))).toBe(32_000)
   })
 
   it('is null for a game that was given up — the final set was never found', () => {
