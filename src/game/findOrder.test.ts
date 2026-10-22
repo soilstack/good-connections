@@ -134,29 +134,29 @@ describe('findOrderString', () => {
   })
 
   describe('mocked', () => {
-    it('four errors, two of them false sets, in any order', () => {
+    it('five errors, two of them false sets, in any order', () => {
       const o = orderA(
-        done_([found(1000, 0), bad(1500), dup(1800, 0), bad(1900), dup(1950, 0), found(2000, 1)]),
+        done_([found(1000, 0), bad(1500), dup(1800, 0), bad(1900), dup(1950, 0), dup(1980, 0), found(2000, 1)]),
       )!
-      expect(o.text).toBe('AxaxaB')
+      expect(o.text).toBe('AxaxaaB')
       expect(o.rating).toBe('mocked')
     })
 
-    it('four false sets and nothing else counts', () => {
-      expect(orderA(done_([bad(500), bad(600), bad(700), bad(800), ...sequence([0, 1])]))!.rating).toBe(
+    it('five false sets and nothing else counts', () => {
+      expect(orderA(done_([bad(500), bad(600), bad(700), bad(800), bad(900), ...sequence([0, 1])]))!.rating).toBe(
         'mocked',
       )
     })
 
-    it('three errors is not enough, even all false sets', () => {
-      expect(orderA(done_([bad(500), bad(600), bad(700), ...sequence([0, 1])]))!.rating).toBe('other')
+    it('four errors is not enough, even all false sets', () => {
+      expect(orderA(done_([bad(500), bad(600), bad(700), bad(800), ...sequence([0, 1])]))!.rating).toBe('other')
     })
 
-    it('four errors with only one false set is not enough', () => {
+    it('five errors with only one false set is not enough', () => {
       const o = orderA(
-        done_([found(1000, 0), bad(1500), dup(1600, 0), dup(1700, 0), dup(1800, 0), found(2000, 1)]),
+        done_([found(1000, 0), bad(1500), dup(1600, 0), dup(1700, 0), dup(1800, 0), dup(1900, 0), found(2000, 1)]),
       )!
-      expect(o.text).toBe('AxaaaB')
+      expect(o.text).toBe('AxaaaaB')
       expect(o.rating).toBe('other')
     })
 
@@ -169,13 +169,13 @@ describe('findOrderString', () => {
     })
 
     it('only in Mode A', () => {
-      const events = done_([found(1000, 0), bad(1500), bad(1600), bad(1700), bad(1800), found(2000, 1)])
+      const events = done_([found(1000, 0), bad(1500), bad(1600), bad(1700), bad(1800), bad(1900), found(2000, 1)])
       expect(findOrderString(events, 'B')!.rating).toBe('other')
       expect(findOrderString(events, 'C')!.rating).toBe('other')
     })
 
     it('only for a completed game', () => {
-      const events = [found(1000, 0), bad(1500), bad(1600), bad(1700), bad(1800), end(9_000, 'abandoned')]
+      const events = [found(1000, 0), bad(1500), bad(1600), bad(1700), bad(1800), bad(1900), end(9_000, 'abandoned')]
       expect(orderA(events)!.rating).toBe('other')
     })
   })

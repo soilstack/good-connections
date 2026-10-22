@@ -494,9 +494,9 @@ export function setLabel(setIndex: number): string {
  *
  * - perfect        — one clean sweep, no repeats, no false sets: ABCDEF
  * - almost-perfect — one clean sweep with repeats but no false sets: ABCcDEF
- * - mocked         — Mode A only: a completed game with at least four errors
+ * - mocked         — Mode A only: a completed game with at least five errors
  *                    (repeats and false sets together), at least two of them
- *                    false sets. Order is irrelevant: AxxbbBCDEF is mocked.
+ *                    false sets. Order is irrelevant: AxxbbbBCDEF is mocked.
  * - other          — anything else
  *
  * "Clean sweep" is the same test as always: first finds in canonical scan order
@@ -562,7 +562,7 @@ export function findOrderString(events: readonly TelemetryEvent[], mode: Mode): 
   let rating: OrderRating = 'other'
   if (completed && sweep && falseSets === 0) {
     rating = repeats === 0 ? 'perfect' : 'almost-perfect'
-  } else if (completed && mode === 'A' && falseSets >= 2 && repeats + falseSets >= 4) {
+  } else if (completed && mode === 'A' && falseSets >= 2 && repeats + falseSets >= 5) {
     rating = 'mocked'
   }
   return { text: parts.join(''), rating }

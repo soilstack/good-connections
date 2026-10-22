@@ -374,6 +374,7 @@ describe('MatchSummary order-string remark', () => {
     { t_ms: 1_400, type: 'set_duplicate', payload: { cards: [0, 1, 2], setIndex: 0 } },
     { t_ms: 1_600, type: 'set_invalid', payload: { cards: [0, 1, 2] } },
     { t_ms: 1_700, type: 'set_duplicate', payload: { cards: [0, 1, 2], setIndex: 0 } },
+    { t_ms: 1_800, type: 'set_duplicate', payload: { cards: [0, 1, 2], setIndex: 0 } },
   ]
 
   it('mocks a botched Mode A game, one coloured letter at a time', () => {
