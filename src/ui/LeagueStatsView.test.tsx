@@ -154,8 +154,8 @@ describe('LeagueStatsView — Results', () => {
     )
     const table = html.slice(html.indexOf('Results'))
     expect(text(table)).toContain('Player Games 1st Perfect 5 sets')
-    expect(text(table)).toContain('MDS (you) 12 5 2 0:41.3')
-    expect(text(table)).toContain('TM 10 4 0 —')
+    expect(text(table)).toContain('MDS (you) 12 5(42%) 2 0:41.3')
+    expect(text(table)).toContain('TM 10 4(40%) 0 —')
   })
 
   it('drops the five-set column in Modes B and C', () => {
@@ -165,6 +165,6 @@ describe('LeagueStatsView — Results', () => {
     const table = html.slice(html.indexOf('Results'))
     expect(text(table)).toContain('Player Games 1st Perfect MDS')
     expect(text(table)).not.toContain('5 sets')
-    expect(text(table)).toContain('MDS (you) 12 5 2')
+    expect(text(table)).toContain('MDS (you) 12 5(42%) 2')
   })
 })

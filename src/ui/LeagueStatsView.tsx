@@ -171,7 +171,10 @@ export function LeagueStatsView({ stats, error, mode, currentUserId, onSelectMem
                       {r.userId === currentUserId ? ' (you)' : ''}
                     </th>
                     <td>{r.games}</td>
-                    <td>{r.firstPlaces}</td>
+                    <td>
+                      {r.firstPlaces}
+                      {r.games > 0 && `(${Math.round((r.firstPlaces / r.games) * 100)}%)`}
+                    </td>
                     <td>{r.perfects}</td>
                     {mode === 'A' && (
                       <td>{r.bestFirstFiveMs === null ? '—' : formatTime(r.bestFirstFiveMs, true)}</td>
@@ -183,7 +186,7 @@ export function LeagueStatsView({ stats, error, mode, currentUserId, onSelectMem
           </div>
           <p className="muted timeline-hint">
             1st is the fastest finished solve of the day — it counts even on a day nobody else
-            played.{mode === 'A' && ' 5 sets is each player’s fastest first five sets, in a game they finished.'}
+            played. The percentage is first places out of games played.{mode === 'A' && ' 5 sets is each player’s fastest first five sets, in a game they finished.'}
           </p>
         </>
       )}
