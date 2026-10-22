@@ -78,7 +78,8 @@ order by l.mode, ds.puzzle_date;
 
 -- ---------------------------------------------------------------------------
 -- 6. Clean up. Deleting the leagues cascades to their daily_seeds rows.
---    Expect "DELETE 2"; then rerun block 5 and expect no rows.
+--    The editor just says "Success. No rows returned"; rerun block 5 and
+--    expect no rows to confirm both leagues and their days are gone.
 -- ---------------------------------------------------------------------------
 delete from leagues
 where id in ('00000000-0000-4000-8000-00000000c0c0', '00000000-0000-4000-8000-00000000a0a0');
