@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { recordHeld } from './records'
+import { personalBests, recordHeld, type PbGame } from './records'
+import { deriveStats, type GameRecord, type TelemetryEvent } from '../game/telemetry'
 import type { SoloRecord } from './leagues'
 
 const rec = (userId: string, puzzleDate: string, timeMs: number): SoloRecord => ({
@@ -81,5 +82,111 @@ describe('recordHeld — Modes B and C, fastest by set count', () => {
 
   it('is nothing on a day that holds no record', () => {
     expect(recordHeld(stats, 'C', 'mds', '2026-09-27')).toBeNull()
+  })
+})
+
+/**
+ * One league game: sets found at the given times (ms), then the game ends one
+ * second after the last find — completed unless `gaveUp`.
+ */
+function game(userId: string, puzzleDate: string, finds: number[], opts: { setCount?: number; gaveUp?: boolean } = {}): PbGame {
+  const events: TelemetryEvent[] = finds.map((t, i) => ({
+    t_ms: t,
+    type: 'set_valid',
+    payload: { cards: [0, 1, 2], setIndex: i },
+  }))
+  events.push({
+    t_ms: (finds.at(-1) ?? 0) + 1_000,
+    type: 'game_end',
+    payload: { reason: opts.gaveUp ? 'abandoned' : 'completed' },
+  })
+  return { userId, puzzleDate, setCount: opts.setCount ?? 6, stats: deriveStats({ events } as GameRecord) }
+}
+/** Six finds, the fifth at `fifth`, the game ending at `total`. */
+const six = (userId: string, date: string, fifth: number, total: number) =>
+  game(userId, date, [1, 2, 3, 4, fifth, total - 1_000])
+
+describe('personalBests — Mode A', () => {
+  it('flags a solve faster than every earlier one, naming the time it beat', () => {
+    const pbs = personalBests([six('mds', '2026-10-01', 50_000, 90_000), six('mds', '2026-10-02', 60_000, 80_000)], 'A')
+    expect(pbs).toEqual([
+      { userId: 'mds', puzzleDate: '2026-10-02', kind: 'solve', timeMs: 80_000, previousMs: 90_000 },
+    ])
+  })
+
+  it('never flags a first finished game — there is nothing to beat', () => {
+    expect(personalBests([six('mds', '2026-10-01', 50_000, 90_000)], 'A')).toEqual([])
+  })
+
+  it('flags the time to the fifth set separately', () => {
+    const pbs = personalBests([six('mds', '2026-10-01', 50_000, 90_000), six('mds', '2026-10-02', 40_000, 95_000)], 'A')
+    expect(pbs).toEqual([
+      { userId: 'mds', puzzleDate: '2026-10-02', kind: 'first-five', timeMs: 40_000, previousMs: 50_000 },
+    ])
+  })
+
+  it('can be both on one day', () => {
+    const pbs = personalBests([six('mds', '2026-10-01', 50_000, 90_000), six('mds', '2026-10-02', 40_000, 80_000)], 'A')
+    expect(pbs.map((p) => p.kind).sort()).toEqual(['first-five', 'solve'])
+  })
+
+  it('must beat the best so far, not just the day before', () => {
+    const pbs = personalBests(
+      [
+        six('mds', '2026-10-01', 50_000, 70_000),
+        six('mds', '2026-10-02', 60_000, 90_000),
+        six('mds', '2026-10-03', 55_000, 80_000), // beats yesterday, not the 1st
+      ],
+      'A',
+    )
+    expect(pbs).toEqual([])
+  })
+
+  it('a tie is not a new best', () => {
+    expect(personalBests([six('mds', '2026-10-01', 50_000, 90_000), six('mds', '2026-10-02', 50_000, 90_000)], 'A')).toEqual([])
+  })
+
+  it('ignores games given up, both as a best and as something to beat', () => {
+    const quit = game('mds', '2026-10-02', [1_000, 2_000], { gaveUp: true }) // short, but not a solve
+    const pbs = personalBests([six('mds', '2026-10-01', 50_000, 90_000), quit, six('mds', '2026-10-03', 60_000, 85_000)], 'A')
+    expect(pbs).toEqual([
+      { userId: 'mds', puzzleDate: '2026-10-03', kind: 'solve', timeMs: 85_000, previousMs: 90_000 },
+    ])
+  })
+
+  it('keeps players apart', () => {
+    expect(personalBests([six('mds', '2026-10-01', 50_000, 90_000), six('tm', '2026-10-02', 40_000, 80_000)], 'A')).toEqual([])
+  })
+
+  it('goes by puzzle date, whatever order the rows arrive in', () => {
+    const pbs = personalBests([six('mds', '2026-10-02', 60_000, 80_000), six('mds', '2026-10-01', 50_000, 90_000)], 'A')
+    expect(pbs.map((p) => p.puzzleDate)).toEqual(['2026-10-02'])
+  })
+})
+
+describe('personalBests — Modes B and C, by set count', () => {
+  it('only compares boards with the same number of sets', () => {
+    const pbs = personalBests(
+      [
+        game('mds', '2026-10-01', [10_000, 20_000], { setCount: 2 }),
+        game('mds', '2026-10-02', [5_000, 10_000, 15_000], { setCount: 3 }), // first 3-set game
+        game('mds', '2026-10-03', [8_000, 12_000], { setCount: 2 }),
+      ],
+      'C',
+    )
+    expect(pbs).toEqual([
+      { userId: 'mds', puzzleDate: '2026-10-03', kind: 'solve', timeMs: 13_000, previousMs: 21_000, setCount: 2 },
+    ])
+  })
+
+  it('has no fifth-set best', () => {
+    const pbs = personalBests(
+      [
+        game('mds', '2026-10-01', [1, 2, 3, 4, 50_000, 60_000], { setCount: 6 }),
+        game('mds', '2026-10-02', [1, 2, 3, 4, 40_000, 70_000], { setCount: 6 }),
+      ],
+      'B',
+    )
+    expect(pbs).toEqual([])
   })
 })

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { LeagueStatsView } from './LeagueStatsView'
-import { RecordBanner } from './LeagueResult'
+import { PersonalBestBanner, RecordBanner } from './LeagueResult'
 import type { LeagueStats, SoloRecord } from '../lib/leagues'
 
 const text = (h: string) => h.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
@@ -17,6 +17,7 @@ const base: LeagueStats = {
   fastestBySetCount: [],
   members: [],
   notables: [],
+  personalBests: [],
 }
 const noop = () => {}
 
@@ -113,5 +114,28 @@ describe('RecordBanner', () => {
   it('never calls it "new" — a record still standing on a later day is not new', () => {
     const html = renderToStaticMarkup(<RecordBanner held={{ kind: 'top-five', rank: 1, timeMs: 1 }} />)
     expect(html.toLowerCase()).not.toContain('new')
+  })
+})
+
+describe('PersonalBestBanner', () => {
+  it('names the time and the best it beat', () => {
+    const html = renderToStaticMarkup(
+      <PersonalBestBanner
+        pbs={[
+          { userId: 'p', puzzleDate: 'd', kind: 'solve', timeMs: 62_300, previousMs: 65_000 },
+          { userId: 'p', puzzleDate: 'd', kind: 'first-five', timeMs: 48_200, previousMs: 50_000 },
+        ]}
+      />,
+    )
+    expect(text(html)).toContain('Personal Best!')
+    expect(text(html)).toContain('Solved in 1:02.3 , beating your 1:05.0')
+    expect(text(html)).toContain('First five sets in 0:48.2 , beating your 0:50.0')
+  })
+
+  it('names the board size in Modes B and C', () => {
+    const html = renderToStaticMarkup(
+      <PersonalBestBanner pbs={[{ userId: 'p', puzzleDate: 'd', kind: 'solve', timeMs: 41_200, previousMs: 45_000, setCount: 8 }]} />,
+    )
+    expect(text(html)).toContain('on an 8-set board')
   })
 })

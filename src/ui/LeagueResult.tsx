@@ -11,7 +11,7 @@ import {
   type LeaderboardRow,
   type LeagueStats,
 } from '../lib/leagues'
-import { recordHeld, type RecordHeld } from '../lib/records'
+import { recordHeld, type PersonalBest, type RecordHeld } from '../lib/records'
 import { viewableDates } from '../lib/leagueDates'
 import { isSlotClosed, zonedDateISO } from '../lib/time'
 import { formatTime } from './format'
@@ -195,6 +195,10 @@ export function LeagueResult({
   const showOwnStats = stats && isToday
   // Whether the viewer's game on the day on screen holds a league record.
   const held = leagueStats && date ? recordHeld(leagueStats, mode, userId, date) : null
+  // Every personal best set on the day on screen, by anyone; the viewer's own
+  // get the banner, everyone's get a tag on the leaderboard.
+  const dayPbs = leagueStats?.personalBests.filter((p) => p.puzzleDate === date) ?? []
+  const myPbs = dayPbs.filter((p) => p.userId === userId)
   const i = date === null ? -1 : viewable.indexOf(date)
   // viewable is newest-first, so "older" is forward through the array.
   const older = i >= 0 && i < viewable.length - 1 ? viewable[i + 1]! : null
@@ -273,6 +277,7 @@ export function LeagueResult({
       )}
 
       {held && <RecordBanner held={held} />}
+      {myPbs.length > 0 && <PersonalBestBanner pbs={myPbs} />}
 
       {showOwnStats && (
         <div className="stats-grid">
@@ -327,6 +332,14 @@ export function LeagueResult({
                     )}
                     {/* Penalties are already inside that time; naming them
                         separately shows how much of it was self-inflicted. */}
+                    {dayPbs.some((p) => p.userId === r.userId) && (
+                      <span className="leader-pb">
+                        {dayPbs
+                          .filter((p) => p.userId === r.userId)
+                          .map((p) => (p.kind === 'solve' ? 'PB' : 'PB to 5'))
+                          .join(' · ')}
+                      </span>
+                    )}
                     {r.stats.penaltyMs > 0 && (
                       <span className="leader-penalty">
                         incl. +{formatTime(r.stats.penaltyMs)}
@@ -413,6 +426,37 @@ export function RecordBanner({ held }: { held: RecordHeld }) {
             <b>{held.setCount}-set</b> board.
           </>
         )}
+      </span>
+    </div>
+  )
+}
+
+/**
+ * "Personal Best!" — the viewer beat their own best so far on this day. Unlike
+ * the league record banner this one IS about something new: it says the game
+ * beat everything the player had done before it, which stays true later.
+ */
+export function PersonalBestBanner({ pbs }: { pbs: readonly PersonalBest[] }) {
+  return (
+    <div className="record-banner pb-banner" role="status">
+      <span className="record-banner-icon" aria-hidden="true">
+        ⭐
+      </span>
+      <span>
+        <b>Personal Best!</b>
+        {pbs.map((p) => (
+          <span key={p.kind} className="pb-line">
+            {p.kind === 'first-five' ? 'First five sets in ' : 'Solved in '}
+            <b>{formatTime(p.timeMs, true)}</b>
+            {p.setCount !== undefined && (
+              <>
+                {' '}
+                on {p.setCount === 8 || p.setCount === 11 ? 'an' : 'a'} {p.setCount}-set board
+              </>
+            )}
+            , beating your {formatTime(p.previousMs, true)}.
+          </span>
+        ))}
       </span>
     </div>
   )

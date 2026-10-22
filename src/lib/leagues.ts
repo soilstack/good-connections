@@ -3,7 +3,7 @@ import { generateBoard, mulberry32, type Board, type Mode } from '../game/board'
 import { boardFromPool } from '../game/relabel'
 import { timeSpread, type TimeSpread } from '../game/pace'
 import { zonedDateISO } from './time'
-import { TOP_SOLVES } from './records'
+import { personalBests, TOP_SOLVES, type PersonalBest } from './records'
 import {
   deriveStats,
   finalSetGapMs,
@@ -276,6 +276,8 @@ export interface LeagueStats {
   fastestBySetCount: { setCount: number; record: SoloRecord }[]
   members: MemberStat[]
   notables: NotableRecord[]
+  /** Every game that set a personal best, oldest first. */
+  personalBests: PersonalBest[]
 }
 
 function prevDateISO(iso: string): string {
@@ -472,7 +474,12 @@ export async function getLeagueStats(leagueId: string, mode: Mode): Promise<Leag
     )
   }
 
-  return { mode, topSolves, fastestBySetCount, members, notables }
+  const pbs = personalBests(
+    games.map((g) => ({ userId: g.userId, puzzleDate: g.date, setCount: g.setCount, stats: g.stats })),
+    mode,
+  )
+
+  return { mode, topSolves, fastestBySetCount, members, notables, personalBests: pbs }
 }
 
 // --- one player's history (the performance page) ---------------------------
