@@ -43,6 +43,8 @@ export {
   generateBoard,
 } from './board'
 
+export { type AffineMap, randomAffineMap, applyAffine, boardFromPool } from './relabel'
+
 export {
   type GameContext,
   type CardIndex,

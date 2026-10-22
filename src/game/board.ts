@@ -47,7 +47,10 @@ export interface Board {
   readonly cards: Card[]
   /** The solution: every set on the board, as index triples. Server-only. */
   readonly sets: Triple[]
-  /** How many deals rejection sampling took to land this board (>= 1). */
+  /**
+   * How many deals rejection sampling took to land this board (>= 1), or 0 for
+   * a league board drawn from the precomputed pool (see relabel.ts).
+   */
   readonly attempts: number
 }
 
