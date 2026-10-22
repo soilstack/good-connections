@@ -73,33 +73,39 @@ player's job is to find every set on that board. This is what makes solve
 times comparable between players, which is the entire point of the
 telemetry.
 
-**There are exactly two game modes.** A league is configured to use one
+**There are exactly three game modes.** A league is configured to use one
 of them. Do not build a general "configure any number of sets" parameter.
 
 **Mode A — six sets exactly.** The board contains exactly 6 sets. The
 player is told this and can see how many remain.
 
-**Mode B — unknown count.** An ordinary random 12-card deal. The player
-is **not** told how many sets exist.
+**Mode B — unknown count.** The player is **not** told how many sets
+exist.
 
-The modes differ in exactly one thing: whether the target count is
-visible. Both end identically and automatically, the moment the last set
-on the board is found. There is no "done" button, no way to concede, and
-no way to end a game with sets remaining. In Mode B the player simply
-does not know how close they are until the game ends underneath them.
+**Mode C — unknown count, declare done.** Boards like Mode B, but the game
+does not end on its own: the player presses "Done" when they believe they
+have every set. A premature Done costs a time penalty that doubles each
+time (the nth costs `penalty_base_ms × 2^(n-1)`, base set per league).
 
-The UI should show a running count of sets found in both modes. In Mode A
-it is shown against a denominator (4 of 6); in Mode B it is a bare count
-with no denominator.
+Modes A and B end automatically, the moment the last set on the board is
+found. There is no "done" button in them, and no way to end a game with
+sets remaining other than giving up. In Mode B the player simply does not
+know how close they are until the game ends underneath them.
+
+The UI should show a running count of sets found in every mode. In Mode A
+it is shown against a denominator (4 of 6); in Modes B and C it is a bare
+count with no denominator.
 
 ### Generation
 
-Both modes generate cheaply on demand — no precomputed board library.
+Practice, free play and Mode A generate cheaply on demand. League Mode B
+and C boards, from 2026-10-23, come from a precomputed pool (below).
 
-- **Mode B:** shuffle, take 12. A board with zero sets must be rejected
-  and redealt — with no "done" action, a setless board is a game that can
-  never end. This is not an edge case to handle gracefully; it is a board
-  that must never be dealt. About 3% of random deals.
+- **Mode B/C, practice and legacy league days:** shuffle, take 12, keep
+  with probability min(N/6, 1) where N is the set count. A board with zero
+  sets is always rejected — a setless board is a game that can never end.
+  This is not an edge case to handle gracefully; it is a board that must
+  never be dealt.
 - **Mode A:** rejection sampling. Shuffle, take 12, count sets, retry
   until the count is exactly 6. A random 12-card board averages 220/79 ≈
   2.78 sets, so 6 is above the mean but well within reach — expect on the
@@ -111,6 +117,44 @@ For league play, generate the board **once** when the game slot is
 created, store it, and serve that stored board to every member. Never
 regenerate per player. Store the solution alongside it and **never send
 the solution to the client.**
+
+### League Mode B/C boards: the pool
+
+From the league-local date in `board_pool_config.cutover` (2026-10-23),
+each Mode B or C league day draws N **uniformly from 1–10, independently
+per day** — not a shuffled bag, which in Mode C would let a player who
+tracked earlier days work out N. `issue_puzzle()` then picks a board with
+exactly N sets from `board_pool` (2,000 per N; ones the league has not
+had yet first) and records its `pool_id` on the `daily_seeds` row. N is
+never sent to the client.
+
+The pool is plain rejection samples (shuffle, take 12, keep if exactly N
+sets), made offline by `scripts/gen-board-pool.ts` on a crypto RNG and
+committed as `supabase/board-pool/pool-NN.sql`. 10 is the cap because
+exact-count sampling needs ~33,000 deals per 10-set board: fine offline,
+far too slow on a phone. (The proven maximum on 12 cards is 14.)
+
+The client relabels each pool board deterministically from the day's
+seed (`boardFromPool` in `src/game/relabel.ts`): a random affine bijection
+v → Mv + t of GF(3)^4, then a shuffle into display order, both from one
+`mulberry32(seed)` stream. Affine maps send sets to sets, so the count
+stays exactly N, and with ~2×10⁹ maps × 12! orders the pool never visibly
+repeats. Every member has the same seed, so every member sees the same
+board.
+
+**Seed-based generation must never change.** Every Mode A day, and every
+B/C day before the cutover (`pool_id` null), is rebuilt on read from its
+stored seed by `generateBoard(mode, mulberry32(seed))`. Any change to
+`mulberry32`, `shuffle`, `deal` or `generateModeA/B/C` silently turns
+past boards into different boards, with telemetry recorded against cards
+that were never on them. `src/game/legacyBoards.test.ts` pins the output;
+if it fails, revert — never update the numbers.
+
+Pool days are served only by `today_puzzle_v2` / `past_puzzle_v2`. The
+old `today_puzzle` / `past_puzzle` refuse pool rows with "app update
+required", so an app version cached before the pool fails loudly rather
+than redrawing the wrong board from the seed. Practice never reads
+`board_pool`.
 
 Worth knowing before changing the RNG: because `mulberry32` advances its
 state by a constant, every seed walks the same 2³² cycle and only picks a
@@ -159,10 +203,16 @@ summary, rather than an endless next-puzzle loop with a live-updating
 stat line. Same information, and it ends somewhere.
 
 ### Note on comparing across modes
-Mode B boards vary in difficulty — a 2-set board and a 5-set board are
-different games. Within a single game slot every player gets the same
+Mode B and C boards vary in difficulty — a 2-set board and a 5-set board
+are different games. Within a single game slot every player gets the same
 board so head-to-head comparison is valid, but season-long aggregates in
-Mode B are noisier than Mode A. Do not mix modes in one leaderboard.
+Modes B and C are noisier than Mode A. Do not mix modes in one leaderboard.
+
+Since the pool, N is flat on 1–10, so a 1-set board and a 10-set board
+differ by roughly 10× in solve time. A raw season average of solve times
+in B/C now mostly measures which days a player happened to play. Per-board
+or per-N normalisation is the fix, and it matters more than it did. It is
+not built yet.
 
 ## Card rendering
 

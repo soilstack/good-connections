@@ -154,8 +154,8 @@ export function LeagueResult({
       : null
 
   // Only fetch the board once the sets may actually be shown. Today comes from
-  // today_puzzle(); a finished day comes from past_puzzle(), which refuses any
-  // date that is not over. Either way generateBoard() computes the solution
+  // today_puzzle_v2(); a finished day comes from past_puzzle_v2(), which refuses
+  // any date that is not over. Either way the board and its solution are built
   // locally, so this is the same data the game itself had.
   useEffect(() => {
     if (!reveal || board || date === null) return
