@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { MedianPoint } from '../game/pace'
 import { formatTime } from './format'
-import { H, M, OffScaleMark, PLOT_W, W, YAxis, Y_CAP_MS, yScale } from './paceChart'
+import { H, M, OffScaleMark, PLOT_W, rangeScale, W, YAxis, Y_CAP_MS } from './paceChart'
 import { playerColours } from './playerColour'
 
 /**
@@ -60,7 +60,9 @@ export function MedianChart({
     points: s.points,
   }))
 
-  const scale = yScale(Math.max(...all.map((p) => p.medianMs), 1))
+  // Fitted to the data, not from zero: the lines all live between a minute or
+  // so and a few minutes, and from zero they would bunch into a thin band.
+  const scale = rangeScale(Math.min(...all.map((p) => p.medianMs)), Math.max(...all.map((p) => p.medianMs)))
   const { y } = scale
   const first = Math.min(...all.map((p) => dayNumber(p.date)))
   const last = Math.max(...all.map((p) => dayNumber(p.date)))
@@ -110,16 +112,21 @@ export function MedianChart({
                     className="pc-hit"
                     onClick={() => setDetail({ name: s.name, colour: s.colour, text })}
                   >
+                    {/* Lines only: no visible dot, except an off-scale ▲ and
+                        a player with a single point, who has no line to draw. */}
                     {scale.isOffScale(p.medianMs) ? (
                       <OffScaleMark cx={x(p.date) + nudge} cy={y(p.medianMs)} colour={s.colour}>
                         <title>{`${s.name} — ${text}`}</title>
                       </OffScaleMark>
                     ) : (
-                      <circle cx={x(p.date)} cy={y(p.medianMs)} r={s.isYou ? 3.5 : 2.5} fill={s.colour}>
-                        <title>{`${s.name} — ${text}`}</title>
-                      </circle>
+                      s.points.length === 1 && (
+                        <circle cx={x(p.date)} cy={y(p.medianMs)} r={s.isYou ? 3.5 : 2.5} fill={s.colour} />
+                      )
                     )}
-                    <circle cx={x(p.date)} cy={y(p.medianMs)} r={11} fill="transparent" />
+                    {/* Invisible touch target, so a tap still shows the detail. */}
+                    <circle cx={x(p.date)} cy={y(p.medianMs)} r={11} fill="transparent">
+                      <title>{`${s.name} — ${text}`}</title>
+                    </circle>
                   </g>
                 )
               })}
@@ -151,7 +158,7 @@ export function MedianChart({
 
       <p className="muted pace-caption">
         Each point is a player’s median solve time over every game they had finished by that day.
-        Falling is getting faster.
+        Falling is getting faster. The time axis is fitted to the data, so it does not start at zero.
         {scale.anyOffScale && ` ▲ is past ${formatTime(Y_CAP_MS)}.`}
       </p>
     </>

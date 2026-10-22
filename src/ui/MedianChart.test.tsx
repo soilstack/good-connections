@@ -38,6 +38,21 @@ describe('MedianChart', () => {
     expect(svg).toContain('Telemattic — median 1:20.0 over 2 games, 2026-10-05')
   })
 
+  it('draws lines without dots, except for a player with a single point', () => {
+    const svg = renderToStaticMarkup(<MedianChart series={series} currentUserId="mds" roster={['mds', 'tm']} />)
+    // Every visible circle is filled with a player colour; touch targets are transparent.
+    const visible = svg.match(/<circle[^>]*fill="#[0-9A-Fa-f]{6}"/g) ?? []
+    expect(visible).toHaveLength(1) // MDS's single point; Telemattic's two are a line
+    expect(visible[0]).toContain(PLAYER_PALETTE[0])
+  })
+
+  it('fits the time axis to the data instead of starting at zero', () => {
+    const svg = renderToStaticMarkup(<MedianChart series={series} currentUserId="mds" roster={null} />)
+    expect(svg).not.toContain('>0:00<')
+    // Data runs 1:10–1:30, so the axis sits just around that.
+    expect(svg).toContain('>1:05<')
+  })
+
   it('draws nothing with no data', () => {
     expect(renderToStaticMarkup(<MedianChart series={[]} currentUserId="mds" roster={null} />)).toBe('')
   })
