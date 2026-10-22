@@ -1,7 +1,7 @@
 import { supabase } from './supabase'
 import { generateBoard, mulberry32, type Board, type Mode } from '../game/board'
 import { boardFromPool } from '../game/relabel'
-import { timeSpread, type TimeSpread } from '../game/pace'
+import { runningMedian, timeSpread, type MedianPoint, type TimeSpread } from '../game/pace'
 import { zonedDateISO } from './time'
 import { personalBests, resultsTable, TOP_SOLVES, type PersonalBest, type ResultsRow } from './records'
 import {
@@ -281,6 +281,8 @@ export interface LeagueStats {
   personalBests: PersonalBest[]
   /** The Results table: games, first places, perfects, best first five. */
   results: (ResultsRow & { displayName: string })[]
+  /** Mode A: each member's running median solve time over the season. Empty in B/C. */
+  medianSeries: { userId: string; displayName: string; points: MedianPoint[] }[]
 }
 
 function prevDateISO(iso: string): string {
@@ -491,7 +493,31 @@ export async function getLeagueStats(leagueId: string, mode: Mode): Promise<Leag
     displayName: names.get(r.userId) ?? '—',
   }))
 
-  return { mode, topSolves, fastestBySetCount, members, notables, personalBests: pbs, results }
+  // Mode A only, like the Solve times table: B/C boards differ too much in
+  // size for a season median to mean anything.
+  const medianSeries =
+    mode === 'A'
+      ? [...byUser.keys()]
+          .map((userId) => ({
+            userId,
+            displayName: names.get(userId) ?? '—',
+            points: runningMedian(
+              completed.filter((g) => g.userId === userId).map((g) => ({ date: g.date, timeMs: g.stats.totalTimeMs! })),
+            ),
+          }))
+          .filter((s) => s.points.length > 0)
+      : []
+
+  return {
+    mode,
+    topSolves,
+    fastestBySetCount,
+    members,
+    notables,
+    personalBests: pbs,
+    results,
+    medianSeries,
+  }
 }
 
 // --- one player's history (the performance page) ---------------------------

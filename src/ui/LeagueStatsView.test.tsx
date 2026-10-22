@@ -19,6 +19,7 @@ const base: LeagueStats = {
   notables: [],
   personalBests: [],
   results: [],
+  medianSeries: [],
 }
 const noop = () => {}
 

@@ -2,6 +2,7 @@ import type { Mode } from '../game/board'
 import { MAX_SETS_ON_TWELVE } from '../game/set'
 import type { LeagueStats, SoloRecord } from '../lib/leagues'
 import { formatTime } from './format'
+import { MedianChart } from './MedianChart'
 
 interface Props {
   /**
@@ -14,9 +15,11 @@ interface Props {
   currentUserId: string
   /** Open a member's performance page. */
   onSelectMember: (userId: string) => void
+  /** League members in join order, for chart colours; null when unavailable. */
+  roster?: readonly string[] | null
 }
 
-export function LeagueStatsView({ stats, error, mode, currentUserId, onSelectMember }: Props) {
+export function LeagueStatsView({ stats, error, mode, currentUserId, onSelectMember, roster }: Props) {
   if (error) return <p className="auth-error">{error}</p>
   if (!stats) return <p className="muted">Loading records…</p>
 
@@ -126,6 +129,13 @@ export function LeagueStatsView({ stats, error, mode, currentUserId, onSelectMem
             very worst). ± is the
             standard deviation: lower means more consistent.
           </p>
+
+          {stats.medianSeries.length > 0 && (
+            <>
+              <h2 className="section-label section-label-gap">Median over the season</h2>
+              <MedianChart series={stats.medianSeries} currentUserId={currentUserId} roster={roster ?? null} />
+            </>
+          )}
         </>
       )}
 
@@ -173,7 +183,7 @@ export function LeagueStatsView({ stats, error, mode, currentUserId, onSelectMem
           </div>
           <p className="muted timeline-hint">
             1st is the fastest finished solve of the day — it counts even on a day nobody else
-            played.{mode === 'A' && ' 5 sets is the fastest anyone found their first five, in a game they finished.'}
+            played.{mode === 'A' && ' 5 sets is each player’s fastest first five sets, in a game they finished.'}
           </p>
         </>
       )}

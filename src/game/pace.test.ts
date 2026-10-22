@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { paceSeries, percentile, timeSpread } from './pace'
+import { paceSeries, percentile, runningMedian, timeSpread } from './pace'
 import type { TelemetryEvent } from './telemetry'
 
 /** A set_valid at t, found in solution slot `idx`. */
@@ -181,5 +181,43 @@ describe('timeSpread — median and 95th percentile', () => {
     const b = timeSpread([10_000, 20_000, 30_000])!
     expect(a.medianMs).toBe(b.medianMs)
     expect(a.p95Ms).toBe(b.p95Ms)
+  })
+})
+
+describe('runningMedian', () => {
+  it('is the median of every solve so far, one point per day', () => {
+    expect(
+      runningMedian([
+        { date: '2026-10-01', timeMs: 90_000 },
+        { date: '2026-10-02', timeMs: 60_000 },
+        { date: '2026-10-03', timeMs: 70_000 },
+      ]),
+    ).toEqual([
+      { date: '2026-10-01', medianMs: 90_000, games: 1 },
+      { date: '2026-10-02', medianMs: 75_000, games: 2 },
+      { date: '2026-10-03', medianMs: 70_000, games: 3 },
+    ])
+  })
+
+  it('goes in date order whatever order the solves arrive in', () => {
+    const pts = runningMedian([
+      { date: '2026-10-03', timeMs: 70_000 },
+      { date: '2026-10-01', timeMs: 90_000 },
+    ])
+    expect(pts.map((p) => p.date)).toEqual(['2026-10-01', '2026-10-03'])
+    expect(pts[1]!.medianMs).toBe(80_000)
+  })
+
+  it('takes a day once, at its best, should it hold two solves', () => {
+    expect(
+      runningMedian([
+        { date: '2026-10-01', timeMs: 90_000 },
+        { date: '2026-10-01', timeMs: 80_000 },
+      ]),
+    ).toEqual([{ date: '2026-10-01', medianMs: 80_000, games: 1 }])
+  })
+
+  it('is empty with nothing solved', () => {
+    expect(runningMedian([])).toEqual([])
   })
 })

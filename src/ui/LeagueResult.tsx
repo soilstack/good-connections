@@ -382,6 +382,7 @@ export function LeagueResult({
         mode={mode}
         currentUserId={userId}
         onSelectMember={setViewing}
+        roster={roster}
       />
 
       <div className="summary-actions">

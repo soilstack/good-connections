@@ -151,3 +151,35 @@ export function timeSpread(timesMs: readonly number[]): TimeSpread | null {
     count: n,
   }
 }
+
+/** One point on a player's season line. */
+export interface MedianPoint {
+  date: string
+  /** Median of every solve up to and including this day. */
+  medianMs: number
+  /** How many solves that median covers. */
+  games: number
+}
+
+/**
+ * A player's median solve time as the season went on: after each day they
+ * finished, the median of all their finished solves so far. The median rather
+ * than the mean for the reason {@link TimeSpread} gives — one disaster barely
+ * moves it — so the line shows a trend, not a single bad day.
+ *
+ * Feed it COMPLETED solves only, as with {@link timeSpread}.
+ */
+export function runningMedian(solves: readonly { date: string; timeMs: number }[]): MedianPoint[] {
+  const byDate = new Map<string, number>()
+  for (const s of solves) byDate.set(s.date, Math.min(s.timeMs, byDate.get(s.date) ?? Infinity))
+  const days = [...byDate.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+  const sofar: number[] = []
+  return days.map(([date, timeMs]) => {
+    sofar.push(timeMs)
+    return {
+      date,
+      medianMs: percentile([...sofar].sort((a, b) => a - b), 0.5),
+      games: sofar.length,
+    }
+  })
+}
