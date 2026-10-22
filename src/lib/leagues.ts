@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { generateBoard, mulberry32, type Board, type Mode } from '../game/board'
+import { boardFromPool } from '../game/relabel'
 import { timeSpread, type TimeSpread } from '../game/pace'
 import { zonedDateISO } from './time'
 import {
@@ -16,9 +17,10 @@ import {
 
 /**
  * League data layer over Supabase. Board generation and stats stay in the pure
- * modules: today_puzzle() hands back a per-day seed and generateBoard() turns it
- * into the same board for everyone; the leaderboard runs deriveStats() over each
- * player's event log. The server stores no derived numbers, so nothing drifts.
+ * modules: today_puzzle_v2() hands back a per-day seed (plus a pool board for
+ * B/C days from the cutover) and the client turns that into the same board for
+ * everyone; the leaderboard runs deriveStats() over each player's event log.
+ * The server stores no derived numbers, so nothing drifts.
  */
 
 export interface League {
@@ -101,33 +103,58 @@ export interface TodayPuzzle {
   board: Board
 }
 
-/** Fetch today's seed for a league and build its board with the pure generator. */
-export async function getTodayPuzzle(leagueId: string): Promise<TodayPuzzle> {
-  const { data, error } = await supabase.rpc('today_puzzle', { p_league: leagueId })
-  if (error) throw new Error(error.message)
-  const row = data as { seed: number; puzzle_date: string; mode: Mode }
+/** What today_puzzle_v2() and past_puzzle_v2() return. */
+interface PuzzleRow {
+  seed: number
+  puzzle_date: string
+  mode: Mode
+  /** The pool board's 12 card ids, or null for a legacy seed-only day. */
+  cards: number[] | null
+}
+
+/**
+ * Build a league day's board. A legacy day (no pool board: every Mode A day, and
+ * B/C days before the cutover) is redrawn from its seed exactly as it always
+ * was. A pool day is the pool board relabelled and reshuffled by the seed.
+ */
+function boardForRow(row: PuzzleRow): Board {
   const seed = Number(row.seed)
-  const board = generateBoard(row.mode, mulberry32(seed))
-  return { seed, puzzleDate: row.puzzle_date, mode: row.mode, board }
+  if (row.cards === null || row.cards === undefined) return generateBoard(row.mode, mulberry32(seed))
+  if (row.mode === 'A') throw new Error('a Mode A league was issued a pool board')
+  return boardFromPool(row.mode, row.cards.map(Number), seed)
+}
+
+/** Shown when the server says this app version is too old to play the day. */
+export const UPDATE_REQUIRED_MESSAGE = 'A new version is available — reload the app'
+
+function leagueError(message: string): Error {
+  return new Error(message.includes('app update required') ? UPDATE_REQUIRED_MESSAGE : message)
+}
+
+/** Fetch today's puzzle for a league and build its board with the pure modules. */
+export async function getTodayPuzzle(leagueId: string): Promise<TodayPuzzle> {
+  const { data, error } = await supabase.rpc('today_puzzle_v2', { p_league: leagueId })
+  if (error) throw leagueError(error.message)
+  const row = data as PuzzleRow
+  return { seed: Number(row.seed), puzzleDate: row.puzzle_date, mode: row.mode, board: boardForRow(row) }
 }
 
 /**
  * Rebuild the board for a league day that is already over.
  *
- * Returns null when the day cannot be redrawn — no `past_puzzle()` function
+ * Returns null when the day cannot be redrawn — no `past_puzzle_v2()` function
  * installed, nobody ever played that day so no seed was issued, or the server
  * refused because the date is not actually finished. Every caller treats null
  * as "no cards for this day" and still shows the rest of the summary, so this
  * never has to be the difference between a page and an error.
  */
 export async function getPastPuzzleBoard(leagueId: string, puzzleDate: string): Promise<Board | null> {
-  const { data, error } = await supabase.rpc('past_puzzle', {
+  const { data, error } = await supabase.rpc('past_puzzle_v2', {
     p_league: leagueId,
     p_date: puzzleDate,
   })
   if (error || data === null || data === undefined) return null
-  const row = data as { seed: number; mode: Mode }
-  return generateBoard(row.mode, mulberry32(Number(row.seed)))
+  return boardForRow(data as PuzzleRow)
 }
 
 /** Post a completed/abandoned league game's event log to the server. */

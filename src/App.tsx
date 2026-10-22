@@ -10,7 +10,13 @@ import { useAuth } from './ui/useAuth'
 import { SignIn } from './ui/SignIn'
 import { DisplayNamePrompt } from './ui/DisplayNamePrompt'
 import { supabase } from './lib/supabase'
-import { getTodayPuzzle, hasPlayedToday, type League, type TodayPuzzle } from './lib/leagues'
+import {
+  getTodayPuzzle,
+  hasPlayedToday,
+  UPDATE_REQUIRED_MESSAGE,
+  type League,
+  type TodayPuzzle,
+} from './lib/leagues'
 
 /**
  * App shell. Practice works signed-out; signing in (magic link) unlocks league
@@ -141,6 +147,12 @@ export function App() {
           <div className="auth-card">
             <h1>Couldn’t load</h1>
             <p className="auth-error">{league.message}</p>
+            {/* An installed iPhone web app has no reload button of its own. */}
+            {league.message === UPDATE_REQUIRED_MESSAGE && (
+              <button type="button" className="btn btn-primary" onClick={() => window.location.reload()}>
+                Reload
+              </button>
+            )}
             <button type="button" className="btn btn-ghost" onClick={exitLeague}>
               Back
             </button>
