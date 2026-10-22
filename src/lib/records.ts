@@ -129,3 +129,68 @@ export function personalBests(games: readonly PbGame[], mode: Mode): PersonalBes
   }
   return out.sort((a, b) => a.puzzleDate.localeCompare(b.puzzleDate))
 }
+
+// --- the Results table --------------------------------------------------------
+
+/** A league game for the Results table: a {@link PbGame} plus its rating. */
+export interface ResultsGame extends PbGame {
+  /** Rated "Perfect Play!" by findOrderString. */
+  perfect: boolean
+}
+
+export interface ResultsRow {
+  userId: string
+  /** Days played, finished or not. */
+  games: number
+  /** Days with the fastest finished solve — shared on an exact tie, and still
+   * a first place on a day nobody else played. */
+  firstPlaces: number
+  perfects: number
+  /** Mode A: fastest time to the fifth set in a finished game. Null otherwise. */
+  bestFirstFiveMs: number | null
+}
+
+/**
+ * Each member's season in four numbers. Every count is per DAY, not per game
+ * record, so a day that somehow holds two records still counts once.
+ *
+ * Times are recorded to the millisecond, so a tie for first is practically
+ * impossible — but if one happens, both players get it.
+ *
+ * Like {@link personalBests}, `games` must be league games only.
+ */
+export function resultsTable(games: readonly ResultsGame[], mode: Mode): ResultsRow[] {
+  // Fastest finished solve each day.
+  const winning = new Map<string, number>()
+  for (const g of games) {
+    const t = g.stats.completed ? g.stats.totalTimeMs : null
+    if (t !== null && t < (winning.get(g.puzzleDate) ?? Infinity)) winning.set(g.puzzleDate, t)
+  }
+
+  const byUser = new Map<string, { days: Set<string>; wins: Set<string>; perfect: Set<string>; five: number | null }>()
+  for (const g of games) {
+    const u = byUser.get(g.userId) ?? { days: new Set(), wins: new Set(), perfect: new Set(), five: null }
+    u.days.add(g.puzzleDate)
+    if (g.stats.completed && g.stats.totalTimeMs === winning.get(g.puzzleDate)) u.wins.add(g.puzzleDate)
+    if (g.perfect) u.perfect.add(g.puzzleDate)
+    const five = mode === 'A' ? timeToSetMs(g.stats, 5) : null
+    if (five !== null && (u.five === null || five < u.five)) u.five = five
+    byUser.set(g.userId, u)
+  }
+
+  return [...byUser.entries()]
+    .map(([userId, u]) => ({
+      userId,
+      games: u.days.size,
+      firstPlaces: u.wins.size,
+      perfects: u.perfect.size,
+      bestFirstFiveMs: u.five,
+    }))
+    .sort(
+      (a, b) =>
+        b.firstPlaces - a.firstPlaces ||
+        b.perfects - a.perfects ||
+        b.games - a.games ||
+        a.userId.localeCompare(b.userId),
+    )
+}

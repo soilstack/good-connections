@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { personalBests, recordHeld, type PbGame } from './records'
+import { personalBests, recordHeld, resultsTable, type PbGame } from './records'
 import { deriveStats, type GameRecord, type TelemetryEvent } from '../game/telemetry'
 import type { SoloRecord } from './leagues'
 
@@ -188,5 +188,98 @@ describe('personalBests — Modes B and C, by set count', () => {
       'B',
     )
     expect(pbs).toEqual([])
+  })
+})
+
+describe('resultsTable', () => {
+  const perfect = (g: PbGame) => ({ ...g, perfect: true })
+  const plain = (g: PbGame) => ({ ...g, perfect: false })
+  const row = (rows: ReturnType<typeof resultsTable>, id: string) => rows.find((r) => r.userId === id)!
+
+  it('counts games played, finished or not', () => {
+    const rows = resultsTable(
+      [
+        plain(six('mds', '2026-10-01', 50_000, 90_000)),
+        plain(game('mds', '2026-10-02', [1_000], { gaveUp: true })),
+      ],
+      'A',
+    )
+    expect(row(rows, 'mds').games).toBe(2)
+  })
+
+  it('gives each day’s first place to the fastest finished solve, even playing alone', () => {
+    const rows = resultsTable(
+      [
+        plain(six('mds', '2026-10-01', 50_000, 90_000)),
+        plain(six('tm', '2026-10-01', 40_000, 80_000)),
+        plain(six('mds', '2026-10-02', 50_000, 99_000)), // alone that day
+      ],
+      'A',
+    )
+    expect(row(rows, 'tm').firstPlaces).toBe(1)
+    expect(row(rows, 'mds').firstPlaces).toBe(1)
+  })
+
+  it('never gives first place to someone who gave up, however short their game', () => {
+    const rows = resultsTable(
+      [plain(game('mds', '2026-10-01', [1_000], { gaveUp: true })), plain(six('tm', '2026-10-01', 50_000, 90_000))],
+      'A',
+    )
+    expect(row(rows, 'mds').firstPlaces).toBe(0)
+    expect(row(rows, 'tm').firstPlaces).toBe(1)
+  })
+
+  it('shares an exact tie for first', () => {
+    const rows = resultsTable(
+      [plain(six('mds', '2026-10-01', 50_000, 90_000)), plain(six('tm', '2026-10-01', 40_000, 90_000))],
+      'A',
+    )
+    expect(row(rows, 'mds').firstPlaces).toBe(1)
+    expect(row(rows, 'tm').firstPlaces).toBe(1)
+  })
+
+  it('counts perfect games', () => {
+    const rows = resultsTable(
+      [perfect(six('mds', '2026-10-01', 50_000, 90_000)), plain(six('mds', '2026-10-02', 50_000, 90_000))],
+      'A',
+    )
+    expect(row(rows, 'mds').perfects).toBe(1)
+  })
+
+  it('keeps the fastest first five sets from a finished game (Mode A)', () => {
+    const rows = resultsTable(
+      [
+        plain(six('mds', '2026-10-01', 50_000, 90_000)),
+        plain(six('mds', '2026-10-02', 45_000, 99_000)),
+        plain(game('mds', '2026-10-03', [1, 2, 3, 4, 10_000], { gaveUp: true })), // not finished
+      ],
+      'A',
+    )
+    expect(row(rows, 'mds').bestFirstFiveMs).toBe(45_000)
+  })
+
+  it('has no first-five time outside Mode A', () => {
+    expect(row(resultsTable([plain(six('mds', '2026-10-01', 50_000, 90_000))], 'C'), 'mds').bestFirstFiveMs).toBeNull()
+  })
+
+  it('counts a day once even if it somehow holds two records', () => {
+    const rows = resultsTable(
+      [perfect(six('mds', '2026-10-01', 50_000, 90_000)), perfect(six('mds', '2026-10-01', 50_000, 95_000))],
+      'A',
+    )
+    expect(row(rows, 'mds')).toMatchObject({ games: 1, firstPlaces: 1, perfects: 1 })
+  })
+
+  it('ranks by first places, then perfects, then games', () => {
+    const rows = resultsTable(
+      [
+        plain(six('a', '2026-10-01', 50_000, 90_000)),
+        plain(six('b', '2026-10-01', 50_000, 80_000)), // b wins day 1
+        perfect(six('a', '2026-10-02', 50_000, 90_000)), // a wins day 2, perfect
+        plain(six('c', '2026-10-03', 50_000, 90_000)), // c wins day 3
+      ],
+      'A',
+    )
+    expect(rows.map((r) => r.userId)).toEqual(['a', 'b', 'c'])
   })
 })

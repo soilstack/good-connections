@@ -129,6 +129,55 @@ export function LeagueStatsView({ stats, error, mode, currentUserId, onSelectMem
         </>
       )}
 
+      {stats.results.length > 0 && (
+        <>
+          <h2 className="section-label section-label-gap">Results</h2>
+          <div className="stat-table-scroll">
+            <table className="stat-table">
+              <thead>
+                <tr>
+                  <th scope="col">Player</th>
+                  <th scope="col" title="Days played, finished or not">
+                    Games
+                  </th>
+                  <th scope="col" title="Days with the fastest finished solve">
+                    1st
+                  </th>
+                  <th scope="col" title="“Perfect Play!” games">
+                    Perfect
+                  </th>
+                  {mode === 'A' && (
+                    <th scope="col" title="Fastest time to the fifth set, in a finished game">
+                      5 sets
+                    </th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {stats.results.map((r) => (
+                  <tr key={r.userId} className={r.userId === currentUserId ? 'is-you' : undefined}>
+                    <th scope="row" title={r.displayName}>
+                      {r.displayName}
+                      {r.userId === currentUserId ? ' (you)' : ''}
+                    </th>
+                    <td>{r.games}</td>
+                    <td>{r.firstPlaces}</td>
+                    <td>{r.perfects}</td>
+                    {mode === 'A' && (
+                      <td>{r.bestFirstFiveMs === null ? '—' : formatTime(r.bestFirstFiveMs, true)}</td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="muted timeline-hint">
+            1st is the fastest finished solve of the day — it counts even on a day nobody else
+            played.{mode === 'A' && ' 5 sets is the fastest anyone found their first five, in a game they finished.'}
+          </p>
+        </>
+      )}
+
       <h2 className="section-label section-label-gap">Members</h2>
       <ol className="member-list">
         {stats.members.map((m) => (

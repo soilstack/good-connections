@@ -3,10 +3,11 @@ import { generateBoard, mulberry32, type Board, type Mode } from '../game/board'
 import { boardFromPool } from '../game/relabel'
 import { timeSpread, type TimeSpread } from '../game/pace'
 import { zonedDateISO } from './time'
-import { personalBests, TOP_SOLVES, type PersonalBest } from './records'
+import { personalBests, resultsTable, TOP_SOLVES, type PersonalBest, type ResultsRow } from './records'
 import {
   deriveStats,
   finalSetGapMs,
+  findOrderString,
   scanOrderScore,
   timeToSetMs,
   summarisePlayer,
@@ -278,6 +279,8 @@ export interface LeagueStats {
   notables: NotableRecord[]
   /** Every game that set a personal best, oldest first. */
   personalBests: PersonalBest[]
+  /** The Results table: games, first places, perfects, best first five. */
+  results: (ResultsRow & { displayName: string })[]
 }
 
 function prevDateISO(iso: string): string {
@@ -332,6 +335,7 @@ export async function getLeagueStats(leagueId: string, mode: Mode): Promise<Leag
     stats: deriveStats({ events: r.events } as GameRecord),
     // Null on a game with too few finds for the number to mean anything.
     scan: scanOrderScore(r.events),
+    perfect: findOrderString(r.events, mode)?.rating === 'perfect',
   }))
   const completed = games.filter((g) => g.stats.completed && g.stats.totalTimeMs !== null)
 
@@ -474,12 +478,20 @@ export async function getLeagueStats(leagueId: string, mode: Mode): Promise<Leag
     )
   }
 
-  const pbs = personalBests(
-    games.map((g) => ({ userId: g.userId, puzzleDate: g.date, setCount: g.setCount, stats: g.stats })),
-    mode,
-  )
+  const asPb = games.map((g) => ({
+    userId: g.userId,
+    puzzleDate: g.date,
+    setCount: g.setCount,
+    stats: g.stats,
+    perfect: g.perfect,
+  }))
+  const pbs = personalBests(asPb, mode)
+  const results = resultsTable(asPb, mode).map((r) => ({
+    ...r,
+    displayName: names.get(r.userId) ?? '—',
+  }))
 
-  return { mode, topSolves, fastestBySetCount, members, notables, personalBests: pbs }
+  return { mode, topSolves, fastestBySetCount, members, notables, personalBests: pbs, results }
 }
 
 // --- one player's history (the performance page) ---------------------------

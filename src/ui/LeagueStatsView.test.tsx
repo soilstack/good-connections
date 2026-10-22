@@ -18,6 +18,7 @@ const base: LeagueStats = {
   members: [],
   notables: [],
   personalBests: [],
+  results: [],
 }
 const noop = () => {}
 
@@ -137,5 +138,32 @@ describe('PersonalBestBanner', () => {
       <PersonalBestBanner pbs={[{ userId: 'p', puzzleDate: 'd', kind: 'solve', timeMs: 41_200, previousMs: 45_000, setCount: 8 }]} />,
     )
     expect(text(html)).toContain('on an 8-set board')
+  })
+})
+
+describe('LeagueStatsView — Results', () => {
+  const results = [
+    { userId: 'MDS', displayName: 'MDS', games: 12, firstPlaces: 5, perfects: 2, bestFirstFiveMs: 41_300 },
+    { userId: 'TM', displayName: 'TM', games: 10, firstPlaces: 4, perfects: 0, bestFirstFiveMs: null },
+  ]
+
+  it('has the requested columns in Mode A', () => {
+    const html = renderToStaticMarkup(
+      <LeagueStatsView stats={{ ...base, mode: 'A', results }} mode="A" currentUserId="MDS" onSelectMember={noop} />,
+    )
+    const table = html.slice(html.indexOf('Results'))
+    expect(text(table)).toContain('Player Games 1st Perfect 5 sets')
+    expect(text(table)).toContain('MDS (you) 12 5 2 0:41.3')
+    expect(text(table)).toContain('TM 10 4 0 —')
+  })
+
+  it('drops the five-set column in Modes B and C', () => {
+    const html = renderToStaticMarkup(
+      <LeagueStatsView stats={{ ...base, results }} mode="C" currentUserId="MDS" onSelectMember={noop} />,
+    )
+    const table = html.slice(html.indexOf('Results'))
+    expect(text(table)).toContain('Player Games 1st Perfect MDS')
+    expect(text(table)).not.toContain('5 sets')
+    expect(text(table)).toContain('MDS (you) 12 5 2')
   })
 })
