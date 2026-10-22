@@ -85,11 +85,14 @@ describe('LeagueStatsView — Mode A solve times', () => {
 
 describe('RecordBanner', () => {
   it('names the Mode A rank', () => {
-    expect(text(renderToStaticMarkup(<RecordBanner held={{ kind: 'top-three', rank: 1, timeMs: 55_700 }} />))).toContain(
+    expect(text(renderToStaticMarkup(<RecordBanner held={{ kind: 'top-five', rank: 1, timeMs: 55_700 }} />))).toContain(
       '0:55.7 is the league’s fastest solve ever',
     )
-    expect(text(renderToStaticMarkup(<RecordBanner held={{ kind: 'top-three', rank: 2, timeMs: 58_000 }} />))).toContain(
+    expect(text(renderToStaticMarkup(<RecordBanner held={{ kind: 'top-five', rank: 2, timeMs: 58_000 }} />))).toContain(
       'second-fastest',
+    )
+    expect(text(renderToStaticMarkup(<RecordBanner held={{ kind: 'top-five', rank: 5, timeMs: 70_000 }} />))).toContain(
+      '1:10.0 is the league’s fifth-fastest solve ever',
     )
   })
 
@@ -108,7 +111,7 @@ describe('RecordBanner', () => {
   })
 
   it('never calls it "new" — a record still standing on a later day is not new', () => {
-    const html = renderToStaticMarkup(<RecordBanner held={{ kind: 'top-three', rank: 1, timeMs: 1 }} />)
+    const html = renderToStaticMarkup(<RecordBanner held={{ kind: 'top-five', rank: 1, timeMs: 1 }} />)
     expect(html.toLowerCase()).not.toContain('new')
   })
 })

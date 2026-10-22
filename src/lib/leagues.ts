@@ -3,6 +3,7 @@ import { generateBoard, mulberry32, type Board, type Mode } from '../game/board'
 import { boardFromPool } from '../game/relabel'
 import { timeSpread, type TimeSpread } from '../game/pace'
 import { zonedDateISO } from './time'
+import { TOP_SOLVES } from './records'
 import {
   deriveStats,
   finalSetGapMs,
@@ -269,7 +270,7 @@ export interface NotableRecord {
 
 export interface LeagueStats {
   mode: Mode
-  /** Mode A: top-3 fastest completed solves. */
+  /** Mode A: the TOP_SOLVES fastest completed solves. */
   topSolves: SoloRecord[]
   /** Mode B: fastest completed solve for each board set-count. */
   fastestBySetCount: { setCount: number; record: SoloRecord }[]
@@ -334,7 +335,7 @@ export async function getLeagueStats(leagueId: string, mode: Mode): Promise<Leag
 
   const topSolves: SoloRecord[] = [...completed]
     .sort((a, b) => a.stats.totalTimeMs! - b.stats.totalTimeMs!)
-    .slice(0, 3)
+    .slice(0, TOP_SOLVES)
     .map((g) => ({
       userId: g.userId,
       displayName: g.name,

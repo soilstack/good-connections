@@ -9,9 +9,12 @@
 import type { Mode } from '../game/board'
 import type { LeagueStats } from './leagues'
 
+/** How many of the fastest Mode A solves the league lists, and congratulates. */
+export const TOP_SOLVES = 5
+
 export type RecordHeld =
-  /** Mode A: one of the league's three fastest solves ever. */
-  | { kind: 'top-three'; rank: 1 | 2 | 3; timeMs: number }
+  /** Mode A: one of the league's five fastest solves ever. */
+  | { kind: 'top-five'; rank: 1 | 2 | 3 | 4 | 5; timeMs: number }
   /** Modes B and C: the fastest solve of a board with this many sets. */
   | { kind: 'set-count'; setCount: number; timeMs: number }
 
@@ -23,7 +26,7 @@ export type RecordHeld =
  * also why nothing here calls it "new".
  *
  * Matches on user id AND date, because a player can hold several of the
- * top-three places with different games, and only the one on screen counts.
+ * top-five places with different games, and only the one on screen counts.
  */
 export function recordHeld(
   stats: Pick<LeagueStats, 'topSolves' | 'fastestBySetCount'>,
@@ -35,9 +38,9 @@ export function recordHeld(
     r.userId === userId && r.puzzleDate === puzzleDate
 
   if (mode === 'A') {
-    const i = stats.topSolves.slice(0, 3).findIndex(mine)
+    const i = stats.topSolves.slice(0, TOP_SOLVES).findIndex(mine)
     if (i < 0) return null
-    return { kind: 'top-three', rank: (i + 1) as 1 | 2 | 3, timeMs: stats.topSolves[i]!.timeMs }
+    return { kind: 'top-five', rank: (i + 1) as 1 | 2 | 3 | 4 | 5, timeMs: stats.topSolves[i]!.timeMs }
   }
 
   const hit = stats.fastestBySetCount.find(({ record }) => mine(record))

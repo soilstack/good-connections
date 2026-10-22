@@ -380,7 +380,14 @@ export function LeagueResult({
   )
 }
 
-const RANK_WORD = { 1: 'fastest', 2: 'second-fastest', 3: 'third-fastest' } as const
+const RANK_WORD = {
+  1: 'fastest',
+  2: 'second-fastest',
+  3: 'third-fastest',
+  4: 'fourth-fastest',
+  5: 'fifth-fastest',
+} as const
+const RANK_ICON = { 1: '🏆', 2: '🥈', 3: '🥉', 4: '🏅', 5: '🏅' } as const
 
 /**
  * The congratulation. Says what the record IS rather than calling it new: viewed
@@ -391,10 +398,10 @@ export function RecordBanner({ held }: { held: RecordHeld }) {
   return (
     <div className="record-banner" role="status">
       <span className="record-banner-icon" aria-hidden="true">
-        {held.kind === 'top-three' && held.rank !== 1 ? (held.rank === 2 ? '🥈' : '🥉') : '🏆'}
+        {held.kind === 'top-five' ? RANK_ICON[held.rank] : '🏆'}
       </span>
       <span>
-        {held.kind === 'top-three' ? (
+        {held.kind === 'top-five' ? (
           <>
             <b>{time}</b> is the league’s <b>{RANK_WORD[held.rank]}</b> solve ever.
           </>
