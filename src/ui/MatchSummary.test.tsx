@@ -25,7 +25,7 @@ const text = (svgOrHtml: string) => svgOrHtml.replace(/<[^>]+>/g, ' ').replace(/
 describe('MatchSummary', () => {
   it('names each player’s hardest and last set by board letter', () => {
     const html = renderToStaticMarkup(
-      <MatchSummary
+      <MatchSummary mode="A"
         rows={[row('aoife', [[10_000, 0], [30_000, 2], [150_000, 4]])]}
         currentUserId="aoife"
       />,
@@ -36,7 +36,7 @@ describe('MatchSummary', () => {
 
   it('calls out the set that stalled most players', () => {
     const html = renderToStaticMarkup(
-      <MatchSummary
+      <MatchSummary mode="A"
         rows={[
           row('aoife', [[10_000, 0], [20_000, 1], [140_000, 3]]),
           row('ben', [[15_000, 1], [25_000, 0], [180_000, 3]]),
@@ -54,7 +54,7 @@ describe('MatchSummary', () => {
     quit.events.at(-1)!.payload = { reason: 'abandoned' }
     quit.stats = { ...quit.stats, completed: false, abandoned: true }
     const html = renderToStaticMarkup(
-      <MatchSummary
+      <MatchSummary mode="A"
         rows={[row('aoife', [[10_000, 0], [20_000, 5]]), row('ben', [[10_000, 0], [20_000, 1]]), quit]}
         currentUserId="aoife"
       />,
@@ -67,7 +67,7 @@ describe('MatchSummary', () => {
 
   it('says nothing about consensus when there is none', () => {
     const html = renderToStaticMarkup(
-      <MatchSummary
+      <MatchSummary mode="A"
         rows={[
           row('aoife', [[10_000, 0], [140_000, 1]]),
           row('ben', [[10_000, 2], [140_000, 3]]),
@@ -85,14 +85,14 @@ describe('MatchSummary', () => {
     for (const ev of withCards.events) {
       if (ev.type === 'set_valid') ev.payload.cards = [7, 9, 11]
     }
-    const body = text(renderToStaticMarkup(<MatchSummary rows={[withCards]} currentUserId="aoife" />))
+    const body = text(renderToStaticMarkup(<MatchSummary mode="A" rows={[withCards]} currentUserId="aoife" />))
     expect(body).toContain('hardest F')
     for (const card of ['7', '9', '11']) expect(body).not.toContain(card)
   })
 
   it('handles a player who found one set, or none', () => {
     const html = renderToStaticMarkup(
-      <MatchSummary
+      <MatchSummary mode="A"
         rows={[row('aoife', [[10_000, 3]]), row('ben', [])]}
         currentUserId="aoife"
       />,
@@ -103,7 +103,7 @@ describe('MatchSummary', () => {
   })
 
   it('renders nothing when nobody found anything', () => {
-    expect(renderToStaticMarkup(<MatchSummary rows={[row('aoife', [])]} currentUserId="aoife" />)).toBe(
+    expect(renderToStaticMarkup(<MatchSummary mode="A" rows={[row('aoife', [])]} currentUserId="aoife" />)).toBe(
       '',
     )
   })
@@ -194,7 +194,7 @@ describe('MatchSummary set reveal', () => {
   it('draws no cards while the day is live', () => {
     const svg = renderToStaticMarkup(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      <MatchSummary rows={rows} currentUserId="MDS" board={board as any} reveal={null} />,
+      <MatchSummary mode="A" rows={rows} currentUserId="MDS" board={board as any} reveal={null} />,
     )
     expect(svg).not.toContain('set-reveal')
     expect(svg).toContain('stay hidden while the day is live')
@@ -203,7 +203,7 @@ describe('MatchSummary set reveal', () => {
   it('draws the lettered sets once the gate opens', () => {
     const svg = renderToStaticMarkup(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      <MatchSummary rows={rows} currentUserId="MDS" board={board as any} reveal="all-played" />,
+      <MatchSummary mode="A" rows={rows} currentUserId="MDS" board={board as any} reveal="all-played" />,
     )
     expect(svg).toContain('set-reveal')
     expect(svg).toContain('Everyone has played')
@@ -216,7 +216,7 @@ describe('MatchSummary set reveal', () => {
   it('shows the whole board as dealt under the sets', () => {
     const svg = renderToStaticMarkup(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      <MatchSummary rows={rows} currentUserId="MDS" board={board as any} reveal="all-played" />,
+      <MatchSummary mode="A" rows={rows} currentUserId="MDS" board={board as any} reveal="all-played" />,
     )
     expect(svg).toContain('Today’s board')
     const grid = svg.slice(svg.indexOf('class="board-mini"'))
@@ -228,7 +228,7 @@ describe('MatchSummary set reveal', () => {
     // the very first group pinned on card 3 — 137 of the 220.
     const svg = renderToStaticMarkup(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      <MatchSummary rows={rows} currentUserId="MDS" board={board as any} reveal="all-played" />,
+      <MatchSummary mode="A" rows={rows} currentUserId="MDS" board={board as any} reveal="all-played" />,
     )
     expect(text(svg)).toContain('checks 137 of the 220 possible three-card groups')
   })
@@ -236,7 +236,7 @@ describe('MatchSummary set reveal', () => {
   it('keeps the board hidden behind the same gate as the sets', () => {
     const svg = renderToStaticMarkup(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      <MatchSummary rows={rows} currentUserId="MDS" board={board as any} reveal={null} />,
+      <MatchSummary mode="A" rows={rows} currentUserId="MDS" board={board as any} reveal={null} />,
     )
     expect(svg).not.toContain('board-mini')
   })
@@ -244,7 +244,7 @@ describe('MatchSummary set reveal', () => {
   it('titles a past day’s board without "today"', () => {
     const svg = renderToStaticMarkup(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      <MatchSummary rows={rows} currentUserId="MDS" board={board as any} reveal="slot-closed" historic />,
+      <MatchSummary mode="A" rows={rows} currentUserId="MDS" board={board as any} reveal="slot-closed" historic />,
     )
     expect(svg).toContain('The board')
     expect(svg).not.toContain('Today’s board')
@@ -253,14 +253,14 @@ describe('MatchSummary set reveal', () => {
   it('says the day is over when that was the reason', () => {
     const svg = renderToStaticMarkup(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      <MatchSummary rows={rows} currentUserId="MDS" board={board as any} reveal="slot-closed" />,
+      <MatchSummary mode="A" rows={rows} currentUserId="MDS" board={board as any} reveal="slot-closed" />,
     )
     expect(svg).toContain('The day is over')
   })
 
   it('does not break when the gate is open but the board has not loaded', () => {
     const svg = renderToStaticMarkup(
-      <MatchSummary rows={rows} currentUserId="MDS" board={null} reveal="all-played" />,
+      <MatchSummary mode="A" rows={rows} currentUserId="MDS" board={null} reveal="all-played" />,
     )
     expect(svg).not.toContain('set-reveal')
   })
@@ -329,7 +329,7 @@ describe('MatchSummary order-string remark', () => {
 
   it('labels a perfect game, bold and green', () => {
     const html = renderToStaticMarkup(
-      <MatchSummary rows={[finished([[1_000, 0], [2_000, 1], [3_000, 2]])]} currentUserId="p" />,
+      <MatchSummary mode="A" rows={[finished([[1_000, 0], [2_000, 1], [3_000, 2]])]} currentUserId="p" />,
     )
     expect(html).toContain('order-string is-perfect')
     expect(text(html)).toContain('ABC Perfect Play!')
@@ -337,7 +337,7 @@ describe('MatchSummary order-string remark', () => {
 
   it('labels an almost-perfect game', () => {
     const html = renderToStaticMarkup(
-      <MatchSummary
+      <MatchSummary mode="A"
         rows={[
           finished(
             [[1_000, 0], [2_000, 1], [3_000, 2]],
@@ -353,7 +353,7 @@ describe('MatchSummary order-string remark', () => {
 
   it('gives no remark, in grey, when there was a false set', () => {
     const html = renderToStaticMarkup(
-      <MatchSummary
+      <MatchSummary mode="A"
         rows={[
           finished(
             [[1_000, 0], [2_000, 1], [3_000, 2]],
@@ -367,5 +367,30 @@ describe('MatchSummary order-string remark', () => {
     expect(text(html)).toContain('AxBC')
     expect(html).not.toContain('Perfect Play!')
     expect(html).not.toContain('Almost perfect')
+  })
+
+  const botched: TelemetryEvent[] = [
+    { t_ms: 1_200, type: 'set_invalid', payload: { cards: [0, 1, 2] } },
+    { t_ms: 1_400, type: 'set_duplicate', payload: { cards: [0, 1, 2], setIndex: 0 } },
+    { t_ms: 1_600, type: 'set_invalid', payload: { cards: [0, 1, 2] } },
+  ]
+
+  it('mocks a botched Mode A game, one coloured letter at a time', () => {
+    const html = renderToStaticMarkup(
+      <MatchSummary mode="A" rows={[finished([[1_000, 0], [2_000, 1]], [...botched])]} currentUserId="p" />,
+    )
+    expect(html).toContain('order-string is-mocked')
+    const letters = [...html.matchAll(/<span style="color:(hsl\([^)]*\))" aria-hidden="true">(.)<\/span>/g)]
+    expect(letters.map((m) => m[2]).join('').toLowerCase()).toBe('perfect play?')
+    // Every character its own colour.
+    expect(new Set(letters.map((m) => m[1])).size).toBe(letters.length)
+  })
+
+  it('does not mock the same game in Mode B', () => {
+    const html = renderToStaticMarkup(
+      <MatchSummary mode="B" rows={[finished([[1_000, 0], [2_000, 1]], [...botched])]} currentUserId="p" />,
+    )
+    expect(html).toContain('order-string is-other')
+    expect(html).not.toContain('order-remark')
   })
 })

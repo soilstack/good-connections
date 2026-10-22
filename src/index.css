@@ -1067,6 +1067,9 @@ body {
   letter-spacing: 0;
   margin-left: 8px;
 }
+.order-remark-mocked {
+  font-weight: 700;
+}
 
 /* A set count nobody has solved yet: kept in the list so the gaps show, but
    compact and quiet so fourteen rows do not swamp the page. */

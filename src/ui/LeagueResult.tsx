@@ -347,6 +347,7 @@ export function LeagueResult({
         <MatchSummary
           rows={rows}
           currentUserId={userId}
+          mode={mode}
           board={board}
           reveal={reveal}
           historic={!isToday}

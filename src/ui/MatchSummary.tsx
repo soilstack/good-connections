@@ -1,4 +1,5 @@
-import type { Board } from '../game/board'
+import { useState } from 'react'
+import type { Board, Mode } from '../game/board'
 import { canonicalChecksToFinish, tripleCount } from '../game/set'
 import { ditheringMs, findOrderString, matchHighlights, type FindOrder } from '../game/telemetry'
 import type { LeaderboardRow } from '../lib/leagues'
@@ -78,15 +79,49 @@ export function canRevealSets(args: {
   return args.viewerCompleted ? 'you-finished' : null
 }
 
+/**
+ * "pErFeCt PlAy?" for a Mode A game that was anything but: each letter a coin
+ * flip for case, each a different colour. Rolled once on mount, so it does not
+ * re-roll every time the page re-renders around it.
+ */
+function MockingRemark() {
+  const [letters] = useState(() => {
+    const chars = [...'perfect play?']
+    // Evenly spaced hues from a random start, shuffled, so no two match.
+    const start = Math.random() * 360
+    const hues = chars.map((_, i) => (start + (i * 360) / chars.length) % 360)
+    for (let i = hues.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[hues[i], hues[j]] = [hues[j]!, hues[i]!]
+    }
+    return chars.map((ch, i) => ({
+      ch: Math.random() < 0.5 ? ch.toUpperCase() : ch,
+      colour: `hsl(${Math.round(hues[i]!)} 80% 50%)`,
+    }))
+  })
+  return (
+    <span className="order-remark order-remark-mocked" aria-label="perfect play?">
+      {letters.map((l, i) => (
+        <span key={i} style={{ color: l.colour }} aria-hidden="true">
+          {l.ch}
+        </span>
+      ))}
+    </span>
+  )
+}
+
 export function MatchSummary({
   rows,
   currentUserId,
+  mode,
   board,
   reveal = null,
   historic = false,
 }: {
   rows: LeaderboardRow[]
   currentUserId: string
+  /** The league's mode; the mocking remark is Mode A only. */
+  mode: Mode
   /** A finished day rather than today's live one. */
   historic?: boolean
   /** Today's board. Only needed to draw the sets once they may be revealed. */
@@ -104,7 +139,7 @@ export function MatchSummary({
       gapMs: high.hardest.sincePrevMs,
     },
     last: high.last && { label: setLabel(high.last.setIndex), atMs: high.last.atMs },
-    order: findOrderString(row.events),
+    order: findOrderString(row.events, mode),
     ditheringMs: ditheringMs(row.events),
   }))
   if (entries.every((e) => e.last === null)) return null
@@ -165,7 +200,8 @@ export function MatchSummary({
             {e.order && (
               <span className={`order-string is-${e.order.rating}`}>
                 {e.order.text}
-                {e.order.rating !== 'other' && (
+                {e.order.rating === 'mocked' && <MockingRemark />}
+                {(e.order.rating === 'perfect' || e.order.rating === 'almost-perfect') && (
                   <span className="order-remark">
                     {e.order.rating === 'perfect' ? 'Perfect Play!' : 'Almost perfect...sigh'}
                   </span>
