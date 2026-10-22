@@ -6,7 +6,7 @@
  * multiple of 3.
  */
 
-import { ATTRIBUTES, cardId, type Attr, type Card } from './cards'
+import { ATTRIBUTES, cardId, type Attr, type Attribute, type Card } from './cards'
 
 /** Indices [i, j, k] into a board's card array, always with i < j < k. */
 export type Triple = readonly [number, number, number]
@@ -18,6 +18,30 @@ export type Triple = readonly [number, number, number]
  */
 export function isSet(a: Card, b: Card, c: Card): boolean {
   return ATTRIBUTES.every((attr) => (a[attr] + b[attr] + c[attr]) % 3 === 0)
+}
+
+/** One attribute that stops three cards being a set: two share `pair`, one has `odd`. */
+export interface BrokenAttribute {
+  attribute: Attribute
+  pair: Attr
+  odd: Attr
+}
+
+/**
+ * Why three cards are NOT a set, for the in-game explanation. Empty exactly
+ * when {@link isSet} is true. An attribute fails only one way — two the same,
+ * one different — so naming the shared value and the odd one says it all.
+ */
+export function brokenAttributes(a: Card, b: Card, c: Card): BrokenAttribute[] {
+  const out: BrokenAttribute[] = []
+  for (const attribute of ATTRIBUTES) {
+    const [x, y, z] = [a[attribute], b[attribute], c[attribute]]
+    if ((x + y + z) % 3 === 0) continue
+    const pair = x === y || x === z ? x : y
+    const odd = x === pair ? (y === pair ? z : y) : x
+    out.push({ attribute, pair, odd })
+  }
+  return out
 }
 
 /** The value in [0, 2] that makes x + y + it ≡ 0 (mod 3). */

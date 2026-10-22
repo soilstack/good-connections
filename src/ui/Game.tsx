@@ -6,7 +6,7 @@ import { AbandonDialog } from './AbandonDialog'
 import { Summary } from './Summary'
 import { LeagueResult } from './LeagueResult'
 import { Card } from './Card'
-import { formatTime } from './format'
+import { describeBroken, formatTime } from './format'
 import { saveRecord } from './storage'
 import { submitLeagueRecord } from '../lib/leagues'
 
@@ -159,6 +159,11 @@ export function Game({ board, session, onExit, onPlayAgain }: GameProps) {
           game.feedback && (
             <div className={`feedback-banner fb-${game.feedback.kind}`} role="status">
               {FEEDBACK_TEXT[game.feedback.kind]}
+              {game.feedback.why && game.feedback.why.length > 0 && (
+                <span className="feedback-why">
+                  {game.feedback.why.map(describeBroken).join(' · ')}
+                </span>
+              )}
             </div>
           )
         )}

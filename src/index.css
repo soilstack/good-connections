@@ -817,7 +817,10 @@ body {
 
 /* ---- outcome feedback banner ---- */
 .feedback-slot {
-  height: 34px;
+  /* Tall enough for "Not a set" plus its reason, even the two-line one
+     when all four attributes are wrong, so the board never
+     moves when the reason appears. */
+  height: 52px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -829,6 +832,7 @@ body {
   padding: 6px 18px;
   border-radius: 999px;
   animation: pop 0.16s ease;
+  text-align: center;
 }
 .feedback-banner.fb-valid {
   background: rgba(46, 204, 113, 0.18);
@@ -837,6 +841,19 @@ body {
 .feedback-banner.fb-invalid {
   background: rgba(255, 84, 112, 0.18);
   color: var(--bad);
+}
+/* Why it was not a set: a second, quieter line under "Not a set". Two lines
+   would look wrong in a pill, so the banner squares off a little. */
+.feedback-banner:has(.feedback-why) {
+  border-radius: 14px;
+  padding: 3px 14px;
+}
+.feedback-why {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.25;
+  text-align: center;
 }
 .feedback-banner.fb-duplicate {
   background: rgba(245, 181, 68, 0.18);

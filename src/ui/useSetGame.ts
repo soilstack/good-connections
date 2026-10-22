@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Board } from '../game/board'
-import { isSet, type Triple } from '../game/set'
+import { brokenAttributes, isSet, type BrokenAttribute, type Triple } from '../game/set'
 import {
   GameRecorder,
   deriveStats,
@@ -23,6 +23,8 @@ export type FeedbackKind = 'valid' | 'invalid' | 'duplicate'
 export interface Feedback {
   kind: FeedbackKind
   cards: readonly number[]
+  /** Invalid only: what stops the three cards being a set. */
+  why?: readonly BrokenAttribute[]
 }
 
 export interface SetGameState {
@@ -123,10 +125,15 @@ export function useSetGame({
     [],
   )
 
-  const flash = useCallback((kind: FeedbackKind, cards: readonly number[]) => {
+  const flash = useCallback((fb: Feedback) => {
     if (feedbackTimer.current !== null) window.clearTimeout(feedbackTimer.current)
-    setFeedback({ kind, cards })
-    feedbackTimer.current = window.setTimeout(() => setFeedback(null), FEEDBACK_MS)
+    feedbackTimer.current = null
+    setFeedback(fb)
+    // A wrong set stays up, with its reason, until the next card tap: 650ms is
+    // too short to read why. The clock runs meanwhile, so reading costs time.
+    if (fb.kind !== 'invalid') {
+      feedbackTimer.current = window.setTimeout(() => setFeedback(null), FEEDBACK_MS)
+    }
   }, [])
 
   const finish = useCallback(
@@ -147,22 +154,23 @@ export function useSetGame({
       const s = [...triple].sort((a, b) => a - b)
       const sorted: [number, number, number] = [s[0]!, s[1]!, s[2]!]
       const [a, b, c] = sorted
-      if (!isSet(board.cards[a]!, board.cards[b]!, board.cards[c]!)) {
+      const [ca, cb, cc] = [board.cards[a]!, board.cards[b]!, board.cards[c]!]
+      if (!isSet(ca, cb, cc)) {
         recorder.setInvalid(sorted)
-        flash('invalid', sorted)
+        flash({ kind: 'invalid', cards: sorted, why: brokenAttributes(ca, cb, cc) })
         return
       }
       const setIndex = findSetIndex(board.sets, sorted)
       if (found.has(setIndex)) {
         recorder.setDuplicate(sorted, setIndex)
-        flash('duplicate', sorted)
+        flash({ kind: 'duplicate', cards: sorted })
         return
       }
       recorder.setValid(sorted, setIndex)
       const next = new Set(found)
       next.add(setIndex)
       setFound(next)
-      flash('valid', sorted)
+      flash({ kind: 'valid', cards: sorted })
       // Modes A/B end the instant the last set is found. Mode C never
       // auto-ends — the player must declare "done".
       if (board.mode !== 'C' && next.size === board.sets.length) finish('completed')
@@ -173,6 +181,7 @@ export function useSetGame({
   const toggleCard = useCallback(
     (i: number) => {
       if (status !== 'playing' || abandonOpen) return
+      if (feedback?.kind === 'invalid') setFeedback(null)
       if (selected.includes(i)) {
         recorder.cardDeselect(i)
         setSelected(selected.filter((x) => x !== i))
@@ -188,7 +197,7 @@ export function useSetGame({
       evaluate(next as [number, number, number])
       setSelected([])
     },
-    [status, abandonOpen, selected, recorder, evaluate],
+    [status, abandonOpen, selected, recorder, evaluate, feedback],
   )
 
   const openAbandon = useCallback(() => {

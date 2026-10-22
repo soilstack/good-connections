@@ -8,6 +8,7 @@ import {
   countSets,
   canonicalChecksToFinish,
   tripleCount,
+  brokenAttributes,
   type Triple,
 } from './set'
 import { generateModeA, mulberry32, shuffle } from './board'
@@ -216,6 +217,53 @@ describe('canonicalChecksToFinish', () => {
             }
           }
       expect(hit).toEqual(sets[sets.length - 1])
+    }
+  })
+})
+
+describe('brokenAttributes', () => {
+  const c = (count: 0 | 1 | 2, colour: 0 | 1 | 2, shape: 0 | 1 | 2, fill: 0 | 1 | 2): Card => ({
+    count,
+    colour,
+    shape,
+    fill,
+  })
+
+  it('is empty for a set', () => {
+    expect(brokenAttributes(c(0, 0, 0, 0), c(1, 1, 1, 1), c(2, 2, 2, 2))).toEqual([])
+    expect(brokenAttributes(c(0, 1, 2, 0), c(0, 1, 2, 1), c(0, 1, 2, 2))).toEqual([])
+  })
+
+  it('names the shared value and the odd one out', () => {
+    // Two red, one green; everything else fine.
+    expect(brokenAttributes(c(0, 0, 0, 0), c(1, 0, 1, 1), c(2, 1, 2, 2))).toEqual([
+      { attribute: 'colour', pair: 0, odd: 1 },
+    ])
+  })
+
+  it('does not care which card is the odd one', () => {
+    const want = [{ attribute: 'colour', pair: 0, odd: 1 }]
+    expect(brokenAttributes(c(2, 1, 2, 2), c(0, 0, 0, 0), c(1, 0, 1, 1))).toEqual(want)
+    expect(brokenAttributes(c(0, 0, 0, 0), c(2, 1, 2, 2), c(1, 0, 1, 1))).toEqual(want)
+  })
+
+  it('lists every broken attribute, in the fixed attribute order', () => {
+    expect(brokenAttributes(c(0, 0, 0, 0), c(0, 0, 1, 0), c(1, 1, 2, 2))).toEqual([
+      { attribute: 'count', pair: 0, odd: 1 },
+      { attribute: 'colour', pair: 0, odd: 1 },
+      { attribute: 'fill', pair: 0, odd: 2 },
+    ])
+  })
+
+  it('finds something wrong with every non-set in the deck', () => {
+    const deck = fullDeck()
+    for (let i = 0; i < deck.length; i++) {
+      for (let j = i + 1; j < deck.length; j++) {
+        for (let k = j + 1; k < deck.length; k += 7) {
+          const [a, b, x] = [deck[i]!, deck[j]!, deck[k]!]
+          expect(brokenAttributes(a, b, x).length === 0).toBe(isSet(a, b, x))
+        }
+      }
     }
   })
 })
