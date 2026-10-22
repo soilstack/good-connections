@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { personalBests, recordHeld, resultsTable, type PbGame } from './records'
+import { heroToZero, personalBests, recordHeld, resultsTable, type PbGame } from './records'
 import { deriveStats, type GameRecord, type TelemetryEvent } from '../game/telemetry'
 import type { SoloRecord } from './leagues'
 
@@ -281,5 +281,44 @@ describe('resultsTable', () => {
       'A',
     )
     expect(rows.map((r) => r.userId)).toEqual(['a', 'b', 'c'])
+  })
+})
+
+describe('heroToZero', () => {
+  /** A finisher whose fifth set came at `fifth` and who finished at `total`. */
+  const p = (id: string, fifth: number, total: number) => {
+    const g = six(id, '2026-10-01', fifth, total)
+    return { userId: g.userId, stats: g.stats }
+  }
+
+  it('names the player fastest to five who finished last', () => {
+    expect(heroToZero([p('hero', 30_000, 200_000), p('b', 40_000, 90_000), p('c', 50_000, 100_000)], 'A')).toBe('hero')
+  })
+
+  it('is nobody when the fastest to five did not finish last', () => {
+    expect(heroToZero([p('a', 30_000, 95_000), p('b', 40_000, 90_000), p('c', 50_000, 100_000)], 'A')).toBeNull()
+  })
+
+  it('needs at least three finishers', () => {
+    expect(heroToZero([p('hero', 30_000, 200_000), p('b', 40_000, 90_000)], 'A')).toBeNull()
+  })
+
+  it('only counts finishers — someone who gave up is not slowest at the sixth set', () => {
+    const quit = game('q', '2026-10-01', [1, 2, 3, 4, 60_000], { gaveUp: true })
+    const rows = [
+      p('hero', 30_000, 200_000),
+      p('b', 40_000, 90_000),
+      { userId: quit.userId, stats: quit.stats },
+    ]
+    expect(heroToZero(rows, 'A')).toBeNull() // only two finishers
+  })
+
+  it('a tie at either end is no award', () => {
+    expect(heroToZero([p('hero', 30_000, 200_000), p('b', 30_000, 90_000), p('c', 50_000, 100_000)], 'A')).toBeNull()
+    expect(heroToZero([p('hero', 30_000, 200_000), p('b', 40_000, 200_000), p('c', 50_000, 100_000)], 'A')).toBeNull()
+  })
+
+  it('is Mode A only', () => {
+    expect(heroToZero([p('hero', 30_000, 200_000), p('b', 40_000, 90_000), p('c', 50_000, 100_000)], 'B')).toBeNull()
   })
 })

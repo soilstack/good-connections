@@ -394,3 +394,33 @@ describe('MatchSummary order-string remark', () => {
     expect(html).not.toContain('order-remark')
   })
 })
+
+describe('MatchSummary Hero to Zero', () => {
+  /** Six finds, the fifth at `fifth`, finishing at `total`. */
+  const p = (name: string, fifth: number, total: number) =>
+    row(name, [[1, 0], [2, 1], [3, 2], [4, 3], [fifth, 4], [total - 1_000, 5]])
+  const field = [p('hero', 30_000, 200_000), p('bea', 40_000, 90_000), p('cal', 50_000, 100_000)]
+
+  it('names the hero once everyone has played', () => {
+    const html = renderToStaticMarkup(
+      <MatchSummary mode="A" rows={field} currentUserId="bea" reveal="all-played" />,
+    )
+    expect(text(html)).toContain('Hero to Zero: hero was fastest to five sets, then finished last.')
+  })
+
+  it('and once the day is over', () => {
+    const html = renderToStaticMarkup(
+      <MatchSummary mode="A" rows={field} currentUserId="bea" reveal="slot-closed" />,
+    )
+    expect(text(html)).toContain('Hero to Zero')
+  })
+
+  it('not while the day is live, even to someone who has finished', () => {
+    for (const reveal of [null, 'you-finished'] as const) {
+      const html = renderToStaticMarkup(
+        <MatchSummary mode="A" rows={field} currentUserId="bea" reveal={reveal} />,
+      )
+      expect(html).not.toContain('Hero to Zero')
+    }
+  })
+})

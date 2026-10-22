@@ -194,3 +194,37 @@ export function resultsTable(games: readonly ResultsGame[], mode: Mode): Results
         a.userId.localeCompare(b.userId),
     )
 }
+
+// --- Hero to Zero -------------------------------------------------------------
+
+/**
+ * Mode A's notorious collapse: the player who was fastest to the fifth set and
+ * then finished slowest of the day. Returns their user id, or null.
+ *
+ * Finishers only — someone who gave up never found the sixth set, so they are
+ * not "slowest at it" — and at least three of them, because with two it only
+ * means the lead changed hands. Both ends must be outright: a shared fastest or
+ * shared slowest is no award.
+ *
+ * The caller decides WHEN to show it: the answer can change while people are
+ * still playing, so only once everyone has played or the day is over.
+ */
+export function heroToZero(
+  rows: readonly { userId: string; stats: GameStats }[],
+  mode: Mode,
+): string | null {
+  if (mode !== 'A') return null
+  const finishers = rows.flatMap((r) => {
+    const five = timeToSetMs(r.stats, 5)
+    const total = r.stats.totalTimeMs
+    return r.stats.completed && five !== null && total !== null ? [{ userId: r.userId, five, total }] : []
+  })
+  if (finishers.length < 3) return null
+
+  const fastest = Math.min(...finishers.map((f) => f.five))
+  const slowest = Math.max(...finishers.map((f) => f.total))
+  const heroes = finishers.filter((f) => f.five === fastest)
+  const zeroes = finishers.filter((f) => f.total === slowest)
+  if (heroes.length !== 1 || zeroes.length !== 1) return null
+  return heroes[0]!.userId === zeroes[0]!.userId ? heroes[0]!.userId : null
+}

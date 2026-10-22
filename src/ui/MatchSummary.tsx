@@ -3,6 +3,7 @@ import type { Board, Mode } from '../game/board'
 import { canonicalChecksToFinish, tripleCount } from '../game/set'
 import { ditheringMs, findOrderString, matchHighlights, type FindOrder } from '../game/telemetry'
 import type { LeaderboardRow } from '../lib/leagues'
+import { heroToZero } from '../lib/records'
 import { Card } from './Card'
 import { formatTime, setLabel } from './format'
 
@@ -151,6 +152,18 @@ export function MatchSummary({
   const lastToFall = consensus(finishers.flatMap((p) => (p.high.last ? [p.high.last.setIndex] : [])))
   const players = entries.length
 
+  // Only once the day's field is complete: while people are still playing, a
+  // later finisher can take "slowest" off the hero, and naming them early
+  // would be wrong. The viewer having finished is not enough.
+  const heroId =
+    reveal === 'all-played' || reveal === 'slot-closed'
+      ? heroToZero(
+          rows.map((r) => ({ userId: r.userId, stats: r.stats })),
+          mode,
+        )
+      : null
+  const hero = heroId === null ? null : entries.find((e) => e.userId === heroId)
+
   return (
     <section className="league-stats">
       <h2 className="section-label">{historic ? 'The match' : 'Today’s match'}</h2>
@@ -169,6 +182,14 @@ export function MatchSummary({
               {finishers.length} finishers.
             </>
           )}
+        </p>
+      )}
+
+      {hero && (
+        <p className="match-note hero-to-zero">
+          <span aria-hidden="true">🦸 → 🫠 </span>
+          <b>Hero to Zero:</b> {hero.name}
+          {hero.isYou ? ' (you)' : ''} was fastest to five sets, then finished last.
         </p>
       )}
 
