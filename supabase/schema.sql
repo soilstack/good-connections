@@ -44,14 +44,35 @@ create table if not exists memberships (
   primary key (league_id, user_id)
 );
 
+-- board_pool: precomputed base boards for Mode B/C league days from the
+-- cutover date (see add-board-pool.sql). 12 card ids sorted ascending, exactly
+-- n sets each. Loaded from supabase/board-pool/pool-NN.sql.
+create table if not exists board_pool (
+  id serial primary key,
+  n smallint not null check (n between 1 and 10),
+  cards smallint[] not null check (array_length(cards, 1) = 12),
+  unique (cards)
+);
+create index if not exists board_pool_n on board_pool (n);
+
+-- board_pool_config: one row, the first league-local date that uses the pool.
+create table if not exists board_pool_config (
+  id boolean primary key default true check (id),
+  cutover date not null
+);
+insert into board_pool_config (cutover) values ('2026-10-23') on conflict (id) do nothing;
+
 -- daily_seeds: one random seed per league per local date. The seed is issued
--- (via today_puzzle() below) only for the CURRENT local date, so everyone gets
--- the same board while future puzzles cannot be pre-computed. The board itself
--- is generated client-side from this seed by the pure generateBoard().
+-- (via today_puzzle_v2() below) only for the CURRENT local date, so everyone
+-- gets the same board while future puzzles cannot be pre-computed. The board
+-- itself is built client-side: from the seed alone by the pure generateBoard()
+-- when pool_id is null (every Mode A day, and B/C days before the cutover), or
+-- from the pool board relabelled by the seed (boardFromPool()) otherwise.
 create table if not exists daily_seeds (
   league_id uuid not null references leagues (id) on delete cascade,
   puzzle_date date not null,                     -- league-local date
   seed bigint not null,
+  pool_id int references board_pool (id),        -- null = legacy seed-only board
   created_at timestamptz not null default now(),
   primary key (league_id, puzzle_date)
 );
@@ -80,7 +101,9 @@ create table if not exists game_records (
 alter table profiles enable row level security;
 alter table leagues enable row level security;
 alter table memberships enable row level security;
-alter table daily_seeds enable row level security;    -- no SELECT policy; reached via today_puzzle()
+alter table daily_seeds enable row level security;    -- no SELECT policy; reached via today_puzzle_v2()
+alter table board_pool enable row level security;     -- no SELECT policy; reached via *_v2 RPCs only
+alter table board_pool_config enable row level security;
 alter table game_records enable row level security;
 
 -- profiles ------------------------------------------------------------------
@@ -141,9 +164,159 @@ end;
 $$;
 
 -- ===========================================================================
--- today_puzzle: issue the current local-date seed for a league (members only),
--- creating it on first request. Returns { seed, puzzle_date, mode }. Only ever
--- issues today's seed, so future puzzles cannot be pre-computed.
+-- issue_puzzle: create a league day's daily_seeds row if it does not exist.
+-- Internal — called only by the puzzle functions below, never by a client.
+--
+-- B/C on or after the cutover: N uniform on 1..10, independently per day (not a
+-- shuffled bag: in Mode C a bag would let a player who tracked previous days
+-- work out N late in a cycle). Then a random pool board with that N, avoiding
+-- ones this league has already had while any remain. No pool board for that N
+-- at all is an error, never a quiet fall back to the legacy distribution.
+-- ===========================================================================
+create or replace function issue_puzzle (p_league uuid, p_date date)
+  returns void
+  language plpgsql
+  security definer
+  set search_path = public
+as $$
+declare
+  m text;
+  cut date;
+  target int;
+  pid int;
+begin
+  if exists (select 1 from daily_seeds where league_id = p_league and puzzle_date = p_date) then
+    return;
+  end if;
+  select mode into m from leagues where id = p_league;
+  if m is null then
+    raise exception 'no such league';
+  end if;
+
+  if m in ('B', 'C') then
+    select cutover into cut from board_pool_config;
+    if cut is null then
+      raise exception 'board_pool_config has no cutover row';
+    end if;
+    if p_date >= cut then
+      target := 1 + floor(random() * 10)::int;
+      select bp.id into pid from board_pool bp
+        where bp.n = target
+          and not exists (
+            select 1 from daily_seeds ds where ds.league_id = p_league and ds.pool_id = bp.id
+          )
+        order by random() limit 1;
+      if pid is null then
+        select id into pid from board_pool where n = target order by random() limit 1;
+      end if;
+      if pid is null then
+        raise exception 'board pool empty for n=%', target;
+      end if;
+    end if;
+  end if;
+
+  -- Two first requests racing: one insert wins, the other is a no-op, and both
+  -- callers then read back the same row.
+  insert into daily_seeds (league_id, puzzle_date, seed, pool_id)
+    values (p_league, p_date, (random() * 2000000000)::bigint, pid)
+    on conflict (league_id, puzzle_date) do nothing;
+end;
+$$;
+
+-- Supabase grants EXECUTE on new public functions to anon and authenticated by
+-- default, so take it away explicitly: a client must not be able to issue (and
+-- so peek at) a future day.
+revoke execute on function issue_puzzle (uuid, date) from public, anon, authenticated;
+
+-- ===========================================================================
+-- today_puzzle_v2: today's puzzle for a league (members only), creating it on
+-- first request. Returns { seed, puzzle_date, mode, cards }, where cards is the
+-- pool board's ids or null for a legacy day. Never returns n — in Mode C that
+-- would give the count away.
+-- ===========================================================================
+create or replace function today_puzzle_v2 (p_league uuid)
+  returns json
+  language plpgsql
+  security definer
+  set search_path = public
+as $$
+declare
+  tz text;
+  m text;
+  d date;
+  s bigint;
+  c smallint[];
+begin
+  select timezone, mode into tz, m from leagues where id = p_league;
+  if tz is null then
+    raise exception 'no such league';
+  end if;
+  if not exists (
+    select 1 from memberships where league_id = p_league and user_id = auth.uid()
+  ) then
+    raise exception 'not a member of this league';
+  end if;
+  d := (now() at time zone tz)::date;
+  perform issue_puzzle(p_league, d);
+  select ds.seed, bp.cards into s, c
+    from daily_seeds ds left join board_pool bp on bp.id = ds.pool_id
+    where ds.league_id = p_league and ds.puzzle_date = d;
+  return json_build_object('seed', s, 'puzzle_date', d, 'mode', m, 'cards', c);
+end;
+$$;
+
+-- ===========================================================================
+-- past_puzzle_v2: a finished league day, so the history browser can redraw it.
+-- Same guard as past_puzzle: p_date >= today is refused. Same shape as
+-- today_puzzle_v2, or null for a day nobody played.
+-- ===========================================================================
+create or replace function past_puzzle_v2 (p_league uuid, p_date date)
+  returns json
+  language plpgsql
+  security definer
+  set search_path = public
+as $$
+declare
+  tz text;
+  m text;
+  s bigint;
+  c smallint[];
+  today date;
+begin
+  select timezone, mode into tz, m from leagues where id = p_league;
+  if tz is null then
+    raise exception 'no such league';
+  end if;
+  if not exists (
+    select 1 from memberships where league_id = p_league and user_id = auth.uid()
+  ) then
+    raise exception 'not a member of this league';
+  end if;
+  today := (now() at time zone tz)::date;
+  if p_date >= today then
+    raise exception 'that puzzle is not finished yet';
+  end if;
+  select ds.seed, bp.cards into s, c
+    from daily_seeds ds left join board_pool bp on bp.id = ds.pool_id
+    where ds.league_id = p_league and ds.puzzle_date = p_date;
+  if s is null then
+    return null;   -- a day nobody played: no seed was ever issued
+  end if;
+  return json_build_object('seed', s, 'puzzle_date', p_date, 'mode', m, 'cards', c);
+end;
+$$;
+
+-- ===========================================================================
+-- The old functions, for app versions cached before this change. Unchanged for
+-- legacy rows; a pool row is refused, because an old client would redraw the
+-- wrong board from its seed.
+--
+-- The message is what an old client shows on screen, verbatim, so it is
+-- written for a player. The new client matches on "app update required".
+--
+-- today_puzzle goes through issue_puzzle so that an old client's first request
+-- on a pool day can never create a LEGACY row for that day. (The raise rolls
+-- the new row back with it; the next v2 request issues it again.)
 -- ===========================================================================
 create or replace function today_puzzle (p_league uuid)
   returns json
@@ -156,6 +329,7 @@ declare
   m text;
   d date;
   s bigint;
+  pid int;
 begin
   select timezone, mode into tz, m from leagues where id = p_league;
   if tz is null then
@@ -167,10 +341,11 @@ begin
     raise exception 'not a member of this league';
   end if;
   d := (now() at time zone tz)::date;
-  insert into daily_seeds (league_id, puzzle_date, seed)
-    values (p_league, d, (random() * 2000000000)::bigint)
-    on conflict (league_id, puzzle_date) do nothing;
-  select seed into s from daily_seeds where league_id = p_league and puzzle_date = d;
+  perform issue_puzzle(p_league, d);
+  select seed, pool_id into s, pid from daily_seeds where league_id = p_league and puzzle_date = d;
+  if pid is not null then
+    raise exception 'app update required: a new version is available. Close and reopen the app.';
+  end if;
   return json_build_object('seed', s, 'puzzle_date', d, 'mode', m);
 end;
 $$;
@@ -208,14 +383,9 @@ as $$
 $$;
 
 -- ===========================================================================
--- past_puzzle: the seed for a league day that is already OVER, so the history
--- browser can redraw a finished board.
---
--- today_puzzle() only ever issues TODAY's seed and daily_seeds has no SELECT
--- policy, which keeps future puzzles unguessable but also puts finished boards
--- out of reach. This restores the finished ones and nothing else: p_date >=
--- today is refused, so today's board still comes only from today_puzzle() and
--- tomorrow's stays unreachable. Members only.
+-- past_puzzle: the old (pre-pool) way to redraw a finished day, kept for app
+-- versions cached before the pool. Refuses pool rows, like today_puzzle above.
+-- past_puzzle_v2 is the current one.
 -- ===========================================================================
 create or replace function past_puzzle (p_league uuid, p_date date)
   returns json
@@ -227,6 +397,7 @@ declare
   tz text;
   m text;
   s bigint;
+  pid int;
   today date;
 begin
   select timezone, mode into tz, m from leagues where id = p_league;
@@ -242,9 +413,12 @@ begin
   if p_date >= today then
     raise exception 'that puzzle is not finished yet';
   end if;
-  select seed into s from daily_seeds where league_id = p_league and puzzle_date = p_date;
+  select seed, pool_id into s, pid from daily_seeds where league_id = p_league and puzzle_date = p_date;
   if s is null then
     return null;
+  end if;
+  if pid is not null then
+    raise exception 'app update required: a new version is available. Close and reopen the app.';
   end if;
   return json_build_object('seed', s, 'puzzle_date', p_date, 'mode', m);
 end;
