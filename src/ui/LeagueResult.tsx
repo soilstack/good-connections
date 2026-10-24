@@ -14,7 +14,7 @@ import {
 import { recordHeld, type PersonalBest, type RecordHeld } from '../lib/records'
 import { viewableDates } from '../lib/leagueDates'
 import { isSlotClosed, zonedDateISO } from '../lib/time'
-import { formatTime } from './format'
+import { formatClock, formatTime, tieBreakDigits } from './format'
 import { SolveTimelineView } from './SolveTimelineView'
 import { LeagueStatsView } from './LeagueStatsView'
 import { SameBoardCompare } from './SameBoardCompare'
@@ -199,6 +199,13 @@ export function LeagueResult({
   // get the banner, everyone's get a tag on the leaderboard.
   const dayPbs = leagueStats?.personalBests.filter((p) => p.puzzleDate === date) ?? []
   const myPbs = dayPbs.filter((p) => p.userId === userId)
+  // The ranking is by millisecond; whole seconds can make two solves look tied.
+  // Rows come completed-first, fastest-first, so the finishers' times are a
+  // sorted prefix and each gets just enough decimals to tell it from its
+  // neighbours.
+  const leaderDigits = tieBreakDigits(
+    (rows ?? []).filter((r) => r.stats.completed).map((r) => r.stats.totalTimeMs ?? 0),
+  )
   const i = date === null ? -1 : viewable.indexOf(date)
   // viewable is newest-first, so "older" is forward through the array.
   const older = i >= 0 && i < viewable.length - 1 ? viewable[i + 1]! : null
@@ -319,7 +326,7 @@ export function LeagueResult({
                   </span>
                   <span className="leader-result">
                     {r.stats.completed
-                      ? formatTime(r.stats.totalTimeMs ?? 0)
+                      ? formatClock(r.stats.totalTimeMs ?? 0, leaderDigits[i] ?? 0)
                       : `${r.stats.setsFound} found`}
                     {/* When they gave up matters: "5 found" alone reads the
                         same whether they quit at 40s or fought for six
