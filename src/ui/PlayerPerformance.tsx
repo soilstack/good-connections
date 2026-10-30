@@ -4,6 +4,7 @@ import type { Superlative } from '../game/telemetry'
 import { getPlayerHistory, type PlayerHistory } from '../lib/leagues'
 import { formatTime } from './format'
 import { PlayerPaceChart } from './PlayerPaceChart'
+import { TimeOfDayChart } from './TimeOfDayChart'
 import { SolveTimelineView } from './SolveTimelineView'
 import { Stat } from './Stat'
 
@@ -176,6 +177,15 @@ export function PlayerPerformanceView({
             <h2 className="section-label">Every game</h2>
             <PlayerPaceChart games={history.games} />
           </section>
+
+          {/* Mode A only: B/C boards differ in size, so total time there says
+              more about the board than about the hour. */}
+          {mode === 'A' && (
+            <section className="league-stats">
+              <h2 className="section-label section-label-gap">Time of day</h2>
+              <TimeOfDayChart games={history.games} />
+            </section>
+          )}
 
           {marks.length > 0 && (
             <section className="league-stats">

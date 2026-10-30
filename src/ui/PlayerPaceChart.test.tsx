@@ -19,6 +19,7 @@ function game(
     id: puzzleDate,
     puzzleDate,
     totalSets: 6,
+    startedAtMs: Date.parse(`${puzzleDate}T12:00:00Z`),
     stats: deriveStats({ events } as GameRecord),
     events,
   }

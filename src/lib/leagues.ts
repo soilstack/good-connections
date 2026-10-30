@@ -528,6 +528,8 @@ export interface PlayerGame {
   puzzleDate: string
   /** Sets on that day's board. */
   totalSets: number
+  /** Wall-clock epoch ms when the board was revealed — for the time-of-day chart. */
+  startedAtMs: number
   stats: GameStats
   events: TelemetryEvent[]
 }
@@ -591,6 +593,7 @@ export async function getPlayerHistory(
     id: r.id,
     puzzleDate: r.puzzle_date,
     totalSets: r.total_sets,
+    startedAtMs: records[i]!.startedAtMs,
     stats: deriveStats(records[i]!),
     events: r.events,
   }))

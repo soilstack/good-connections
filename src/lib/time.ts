@@ -129,3 +129,15 @@ export function formatClock(atMs: number): string {
   const meridiem = h < 12 ? 'am' : 'pm'
   return m === 0 ? `${h12} ${meridiem}` : `${h12}:${m.toString().padStart(2, '0')} ${meridiem}`
 }
+
+/**
+ * Singapore wall-clock time of an instant, as hours in [0, 24) — 21.5 is
+ * 21:30. For the time-of-day chart, where most players are in Singapore.
+ *
+ * Plain arithmetic rather than Intl: Singapore has been a fixed UTC+8, with no
+ * daylight saving, since 1982, and the test checks it against the zone data.
+ */
+export function singaporeHours(atMs: number): number {
+  const h = (atMs / 3_600_000 + 8) % 24
+  return h < 0 ? h + 24 : h
+}

@@ -1311,3 +1311,9 @@ body {
   font-weight: 800;
   color: var(--text);
 }
+
+/* ---- time-of-day chart ---- */
+.tod-dot {
+  fill: var(--accent);
+  opacity: 0.8;
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatClock, formatCountdown, isSlotClosed, nextMidnightMs, zonedDateISO } from './time'
+import { formatClock, formatCountdown, isSlotClosed, nextMidnightMs, singaporeHours, zonedDateISO } from './time'
 
 /** Wall-clock reading of an instant in a zone, as "YYYY-MM-DD HH:mm". */
 function wallClock(timezone: string, atMs: number): string {
@@ -200,6 +200,27 @@ describe('a league whose day rolls at 3pm Singapore time', () => {
       }).format(ms)
     for (const iso of ['2026-01-15T00:00:00Z', '2026-07-15T00:00:00Z']) {
       expect(inSGT(nextMidnightMs('Etc/GMT+7', Date.parse(iso))!)).toBe('15:00')
+    }
+  })
+})
+
+describe('singaporeHours', () => {
+  it('is the Singapore clock time, in hours, of an instant', () => {
+    // 2026-10-30 13:30 UTC is 21:30 in Singapore.
+    expect(singaporeHours(Date.UTC(2026, 9, 30, 13, 30))).toBeCloseTo(21.5)
+  })
+
+  it('wraps past midnight', () => {
+    // 20:15 UTC is 04:15 the next morning in Singapore.
+    expect(singaporeHours(Date.UTC(2026, 9, 30, 20, 15))).toBeCloseTo(4.25)
+  })
+
+  it('agrees with the Intl zone database, all year round', () => {
+    for (let m = 0; m < 12; m++) {
+      const at = Date.UTC(2026, m, 15, 7, 42)
+      const hm = wallClock('Asia/Singapore', at).slice(11)
+      const [h, min] = hm.split(':').map(Number)
+      expect(singaporeHours(at)).toBeCloseTo(h! + min! / 60)
     }
   })
 })
