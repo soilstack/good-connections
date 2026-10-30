@@ -86,6 +86,10 @@ exist.
 does not end on its own: the player presses "Done" when they believe they
 have every set. A premature Done costs a time penalty that doubles each
 time (the nth costs `penalty_base_ms × 2^(n-1)`, base set per league).
+The one exception: on a pool board (below) the tenth set ends the game,
+since ten is the pool's ceiling and finding it gives nothing away
+(`poolBoardFinished` in `src/game/relabel.ts`). Seed-built boards, which can
+hold up to 14, always wait for Done.
 
 Modes A and B end automatically, the moment the last set on the board is
 found. There is no "done" button in them, and no way to end a game with
