@@ -1317,3 +1317,55 @@ body {
   fill: var(--accent);
   opacity: 0.8;
 }
+
+/* ---- failure analyzer ---- */
+.fa-heading {
+  margin: 14px 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.fa-table th[scope='row'] {
+  white-space: nowrap;
+}
+.fa-table tr.fa-sub th[scope='row'] {
+  padding-left: 18px;
+  font-weight: 500;
+}
+/* Too few games behind the number to read anything into it. */
+.fa-table td.is-thin,
+.fa-cell.is-thin {
+  opacity: 0.4;
+}
+.fa-table td.is-hot {
+  color: var(--bad);
+  font-weight: 700;
+}
+.fa-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  max-width: 300px;
+  margin: 0 auto;
+}
+.fa-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 4px;
+  border: 1px solid var(--border, rgba(127, 127, 127, 0.25));
+  border-radius: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.fa-cell-num {
+  font-size: 11px;
+  color: var(--muted);
+}
+.fa-cell-lift {
+  font-size: 17px;
+  font-weight: 700;
+}
+.fa-cell-slow {
+  font-size: 11px;
+  color: var(--muted);
+}

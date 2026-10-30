@@ -159,6 +159,29 @@ export async function getPastPuzzleBoard(leagueId: string, puzzleDate: string): 
   return boardForRow(data as PuzzleRow)
 }
 
+/** Shown when the failure analyzer's SQL function has not been installed yet. */
+export const PAST_BOARDS_MISSING = 'missing'
+
+/**
+ * Every finished day's board for a league, by puzzle date, in one call — for
+ * the failure analyzer. past_puzzles_v2() applies the same rules as the
+ * one-day past_puzzle_v2(): members only, and never a day still being played.
+ *
+ * Throws an Error whose message is PAST_BOARDS_MISSING when the function is not
+ * in the database yet (supabase/add-past-puzzles-fn.sql not run).
+ */
+export async function getPastBoards(leagueId: string): Promise<Map<string, Board>> {
+  const { data, error } = await supabase.rpc('past_puzzles_v2', { p_league: leagueId })
+  if (error) {
+    // PostgREST's "no such function" — the SQL file has not been run.
+    if (error.code === 'PGRST202' || /past_puzzles_v2/.test(error.message)) throw new Error(PAST_BOARDS_MISSING)
+    throw new Error(error.message)
+  }
+  const out = new Map<string, Board>()
+  for (const row of (data ?? []) as PuzzleRow[]) out.set(row.puzzle_date, boardForRow(row))
+  return out
+}
+
 /** Post a completed/abandoned league game's event log to the server. */
 export async function submitLeagueRecord(args: {
   leagueId: string

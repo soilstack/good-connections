@@ -5,6 +5,7 @@ import { getPlayerHistory, type PlayerHistory } from '../lib/leagues'
 import { formatTime } from './format'
 import { PlayerPaceChart } from './PlayerPaceChart'
 import { TimeOfDayChart } from './TimeOfDayChart'
+import { FailureAnalyzer } from './FailureAnalyzer'
 import { SolveTimelineView } from './SolveTimelineView'
 import { Stat } from './Stat'
 
@@ -68,6 +69,7 @@ export function PlayerPerformance({
       leagueName={leagueName}
       mode={mode}
       isYou={userId === currentUserId}
+      leagueId={leagueId}
       onBack={onBack}
     />
   )
@@ -87,12 +89,15 @@ export function PlayerPerformanceView({
   leagueName,
   mode,
   isYou,
+  leagueId,
   onBack,
 }: {
   history: PlayerHistory
   leagueName: string
   mode: Mode
   isYou: boolean
+  /** Given only with a network: the failure analyzer fetches the league's boards. */
+  leagueId?: string
   onBack: () => void
 }) {
   const [expanded, setExpanded] = useState<string | null>(null)
@@ -184,6 +189,13 @@ export function PlayerPerformanceView({
             <section className="league-stats">
               <h2 className="section-label section-label-gap">Time of day</h2>
               <TimeOfDayChart games={history.games} />
+            </section>
+          )}
+
+          {leagueId && (
+            <section className="league-stats">
+              <h2 className="section-label section-label-gap">Failure analyzer</h2>
+              <FailureAnalyzer leagueId={leagueId} games={history.games} />
             </section>
           )}
 
