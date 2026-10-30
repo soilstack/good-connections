@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { mockingRoll } from './mocking'
 import type { Board, Mode } from '../game/board'
 import { canonicalChecksToFinish, tripleCount } from '../game/set'
 import { ditheringMs, findOrderString, matchHighlights, type FindOrder } from '../game/telemetry'
@@ -81,25 +81,14 @@ export function canRevealSets(args: {
 }
 
 /**
- * "pErFeCt PlAy?" for a Mode A game that was anything but: each letter a coin
- * flip for case, each a different colour. Rolled once on mount, so it does not
- * re-roll every time the page re-renders around it.
+ * The remark for a "mocked" game: the SpongeBob "pErFeCt PlAy?", a bold
+ * "Ha HAW!", or nothing — decided by a roll fixed per player per day (see
+ * ./mocking), so it never changes on refresh and everyone sees the same one.
  */
-function MockingRemark() {
-  const [letters] = useState(() => {
-    const chars = [...'perfect play?']
-    // Evenly spaced hues from a random start, shuffled, so no two match.
-    const start = Math.random() * 360
-    const hues = chars.map((_, i) => (start + (i * 360) / chars.length) % 360)
-    for (let i = hues.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1))
-      ;[hues[i], hues[j]] = [hues[j]!, hues[i]!]
-    }
-    return chars.map((ch, i) => ({
-      ch: Math.random() < 0.5 ? ch.toUpperCase() : ch,
-      colour: `hsl(${Math.round(hues[i]!)} 80% 50%)`,
-    }))
-  })
+function MockingRemark({ userId, puzzleDate }: { userId: string; puzzleDate: string }) {
+  const { verdict, letters } = mockingRoll(userId, puzzleDate)
+  if (verdict === 'silent') return null
+  if (verdict === 'haw') return <span className="order-remark order-remark-haw">Ha HAW!</span>
   return (
     <span className="order-remark order-remark-mocked" aria-label="perfect play?">
       {letters.map((l, i) => (
@@ -115,6 +104,7 @@ export function MatchSummary({
   rows,
   currentUserId,
   mode,
+  puzzleDate,
   board,
   reveal = null,
   historic = false,
@@ -123,6 +113,8 @@ export function MatchSummary({
   currentUserId: string
   /** The league's mode; the mocking remark is Mode A only. */
   mode: Mode
+  /** The day on screen. Seeds each player's mocking roll for that day. */
+  puzzleDate?: string
   /** A finished day rather than today's live one. */
   historic?: boolean
   /** Today's board. Only needed to draw the sets once they may be revealed. */
@@ -221,7 +213,9 @@ export function MatchSummary({
             {e.order && (
               <span className={`order-string is-${e.order.rating}`}>
                 {e.order.text}
-                {e.order.rating === 'mocked' && <MockingRemark />}
+                {e.order.rating === 'mocked' && puzzleDate && (
+                  <MockingRemark userId={e.userId} puzzleDate={puzzleDate} />
+                )}
                 {(e.order.rating === 'perfect' || e.order.rating === 'almost-perfect') && (
                   <span className="order-remark">
                     {e.order.rating === 'perfect' ? 'Perfect Play!' : 'Almost perfect...sigh'}

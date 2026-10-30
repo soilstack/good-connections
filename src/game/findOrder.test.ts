@@ -134,48 +134,63 @@ describe('findOrderString', () => {
   })
 
   describe('mocked', () => {
-    it('five errors, two of them false sets, in any order', () => {
-      const o = orderA(
-        done_([found(1000, 0), bad(1500), dup(1800, 0), bad(1900), dup(1950, 0), dup(1980, 0), found(2000, 1)]),
-      )!
-      expect(o.text).toBe('AxaxaaB')
+    /** `falses` false sets then `repeats` repeats of set A, between two finds. */
+    const botched = (falses: number, repeats: number) =>
+      done_([
+        found(1000, 0),
+        ...Array.from({ length: falses }, (_, i) => bad(1100 + i)),
+        ...Array.from({ length: repeats }, (_, i) => dup(1500 + i, 0)),
+        found(2000, 1),
+      ])
+
+    it('nine errors, three of them false sets', () => {
+      const o = orderA(botched(3, 6))!
+      expect(o.text).toBe('AxxxaaaaaaB')
       expect(o.rating).toBe('mocked')
     })
 
-    it('five false sets and nothing else counts', () => {
-      expect(orderA(done_([bad(500), bad(600), bad(700), bad(800), bad(900), ...sequence([0, 1])]))!.rating).toBe(
-        'mocked',
-      )
+    it('nine false sets and nothing else counts', () => {
+      expect(orderA(botched(9, 0))!.rating).toBe('mocked')
     })
 
-    it('four errors is not enough, even all false sets', () => {
-      expect(orderA(done_([bad(500), bad(600), bad(700), bad(800), ...sequence([0, 1])]))!.rating).toBe('other')
-    })
-
-    it('five errors with only one false set is not enough', () => {
+    it('in any order', () => {
       const o = orderA(
-        done_([found(1000, 0), bad(1500), dup(1600, 0), dup(1700, 0), dup(1800, 0), dup(1900, 0), found(2000, 1)]),
+        done_([
+          found(1000, 0),
+          dup(1100, 0),
+          bad(1200),
+          dup(1300, 0),
+          dup(1400, 0),
+          bad(1500),
+          dup(1600, 0),
+          dup(1700, 0),
+          bad(1800),
+          dup(1900, 0),
+          found(2000, 1),
+        ]),
       )!
-      expect(o.text).toBe('AxaaaaB')
-      expect(o.rating).toBe('other')
+      expect(o.rating).toBe('mocked')
+    })
+
+    it('eight errors is not enough, even all false sets', () => {
+      expect(orderA(botched(8, 0))!.rating).toBe('other')
+    })
+
+    it('nine errors with only two false sets is not enough', () => {
+      expect(orderA(botched(2, 7))!.rating).toBe('other')
     })
 
     it('repeats alone are never mocked', () => {
-      const o = orderA(
-        done_([found(1000, 0), dup(1100, 0), dup(1200, 0), dup(1300, 0), dup(1400, 0), found(2000, 2), found(3000, 1)]),
-      )!
-      expect(o.text).toBe('AaaaaCB')
-      expect(o.rating).toBe('other')
+      expect(orderA(botched(0, 12))!.rating).not.toBe('mocked')
     })
 
     it('only in Mode A', () => {
-      const events = done_([found(1000, 0), bad(1500), bad(1600), bad(1700), bad(1800), bad(1900), found(2000, 1)])
-      expect(findOrderString(events, 'B')!.rating).toBe('other')
-      expect(findOrderString(events, 'C')!.rating).toBe('other')
+      expect(findOrderString(botched(9, 0), 'B')!.rating).toBe('other')
+      expect(findOrderString(botched(9, 0), 'C')!.rating).toBe('other')
     })
 
     it('only for a completed game', () => {
-      const events = [found(1000, 0), bad(1500), bad(1600), bad(1700), bad(1800), bad(1900), end(9_000, 'abandoned')]
+      const events = [found(1000, 0), ...Array.from({ length: 9 }, (_, i) => bad(1100 + i)), end(9_000, 'abandoned')]
       expect(orderA(events)!.rating).toBe('other')
     })
   })

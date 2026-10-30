@@ -1305,3 +1305,9 @@ body {
   font-weight: 700;
   color: var(--ok);
 }
+/* The other mocking remark: bold, in the skin's own text colour (black in
+   light mode, white in dark), so it reads on every theme. */
+.order-remark-haw {
+  font-weight: 800;
+  color: var(--text);
+}

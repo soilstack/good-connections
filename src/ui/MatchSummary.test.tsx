@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { canRevealSets, MatchSummary } from './MatchSummary'
+import { mockingRoll } from './mocking'
 import { deriveStats, type GameRecord, type TelemetryEvent } from '../game/telemetry'
 import type { LeaderboardRow } from '../lib/leagues'
 
@@ -369,17 +370,27 @@ describe('MatchSummary order-string remark', () => {
     expect(html).not.toContain('Almost perfect')
   })
 
+  // Nine errors, three of them false sets: enough to be "mocked".
   const botched: TelemetryEvent[] = [
-    { t_ms: 1_200, type: 'set_invalid', payload: { cards: [0, 1, 2] } },
-    { t_ms: 1_400, type: 'set_duplicate', payload: { cards: [0, 1, 2], setIndex: 0 } },
-    { t_ms: 1_600, type: 'set_invalid', payload: { cards: [0, 1, 2] } },
-    { t_ms: 1_700, type: 'set_duplicate', payload: { cards: [0, 1, 2], setIndex: 0 } },
-    { t_ms: 1_800, type: 'set_duplicate', payload: { cards: [0, 1, 2], setIndex: 0 } },
+    ...[1_100, 1_200, 1_300].map(
+      (t): TelemetryEvent => ({ t_ms: t, type: 'set_invalid', payload: { cards: [0, 1, 2] } }),
+    ),
+    ...[1_400, 1_500, 1_600, 1_700, 1_800, 1_900].map(
+      (t): TelemetryEvent => ({ t_ms: t, type: 'set_duplicate', payload: { cards: [0, 1, 2], setIndex: 0 } }),
+    ),
   ]
+  const DAY = '2026-10-30'
+  /** A botched game by the first player whose roll for DAY comes out `verdict`. */
+  const botchedBy = (verdict: 'spongebob' | 'haw' | 'silent') => {
+    let i = 0
+    while (mockingRoll(`p${i}`, DAY).verdict !== verdict) i++
+    const r = finished([[1_000, 0], [2_000, 1]], [...botched])
+    return { ...r, userId: `p${i}`, displayName: `p${i}` }
+  }
 
-  it('mocks a botched Mode A game, one coloured letter at a time', () => {
+  it('SpongeBob: one coloured letter at a time', () => {
     const html = renderToStaticMarkup(
-      <MatchSummary mode="A" rows={[finished([[1_000, 0], [2_000, 1]], [...botched])]} currentUserId="p" />,
+      <MatchSummary mode="A" rows={[botchedBy('spongebob')]} currentUserId="x" puzzleDate={DAY} />,
     )
     expect(html).toContain('order-string is-mocked')
     const letters = [...html.matchAll(/<span style="color:(hsl\([^)]*\))" aria-hidden="true">(.)<\/span>/g)]
@@ -388,9 +399,31 @@ describe('MatchSummary order-string remark', () => {
     expect(new Set(letters.map((m) => m[1])).size).toBe(letters.length)
   })
 
+  it('Ha HAW!: bold, in the skin’s text colour', () => {
+    const html = renderToStaticMarkup(
+      <MatchSummary mode="A" rows={[botchedBy('haw')]} currentUserId="x" puzzleDate={DAY} />,
+    )
+    expect(html).toContain('<span class="order-remark order-remark-haw">Ha HAW!</span>')
+  })
+
+  it('silent: no remark at all', () => {
+    const html = renderToStaticMarkup(
+      <MatchSummary mode="A" rows={[botchedBy('silent')]} currentUserId="x" puzzleDate={DAY} />,
+    )
+    expect(html).toContain('order-string is-mocked')
+    expect(html).not.toContain('order-remark')
+  })
+
+  it('the same game gets the same verdict every time', () => {
+    const row = botchedBy('haw')
+    const render = () =>
+      renderToStaticMarkup(<MatchSummary mode="A" rows={[row]} currentUserId="x" puzzleDate={DAY} />)
+    expect(render()).toBe(render())
+  })
+
   it('does not mock the same game in Mode B', () => {
     const html = renderToStaticMarkup(
-      <MatchSummary mode="B" rows={[finished([[1_000, 0], [2_000, 1]], [...botched])]} currentUserId="p" />,
+      <MatchSummary mode="B" rows={[botchedBy('spongebob')]} currentUserId="x" puzzleDate={DAY} />,
     )
     expect(html).toContain('order-string is-other')
     expect(html).not.toContain('order-remark')

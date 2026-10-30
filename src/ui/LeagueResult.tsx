@@ -368,6 +368,7 @@ export function LeagueResult({
           rows={rows}
           currentUserId={userId}
           mode={mode}
+          puzzleDate={date}
           board={board}
           reveal={reveal}
           historic={!isToday}
