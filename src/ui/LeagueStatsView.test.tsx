@@ -24,7 +24,7 @@ const base: LeagueStats = {
 const noop = () => {}
 
 describe('LeagueStatsView — fastest by set count', () => {
-  it('lists every set count from 1 to 14, with the gaps showing', () => {
+  it('lists every set count from 1 to 10, with the gaps showing', () => {
     const stats = {
       ...base,
       fastestBySetCount: [
@@ -35,18 +35,19 @@ describe('LeagueStatsView — fastest by set count', () => {
     const html = renderToStaticMarkup(
       <LeagueStatsView stats={stats} mode="C" currentUserId="MDS" onSelectMember={noop} />,
     )
-    expect(html.match(/class="record-row/g)?.length).toBe(14)
-    expect(html.match(/record-row is-empty/g)?.length).toBe(12)
+    expect(html.match(/class="record-row/g)?.length).toBe(10)
+    expect(html.match(/record-row is-empty/g)?.length).toBe(8)
     expect(text(html)).toContain('1 set')
-    expect(text(html)).toContain('14 sets')
+    expect(text(html)).toContain('10 sets')
+    expect(text(html)).not.toContain('11 sets')
     expect(text(html)).toContain('3 sets MDS')
   })
 
-  it('still shows all fourteen before anyone has finished', () => {
+  it('still shows all ten before anyone has finished', () => {
     const html = renderToStaticMarkup(
       <LeagueStatsView stats={base} mode="C" currentUserId="MDS" onSelectMember={noop} />,
     )
-    expect(html.match(/record-row is-empty/g)?.length).toBe(14)
+    expect(html.match(/record-row is-empty/g)?.length).toBe(10)
   })
 })
 

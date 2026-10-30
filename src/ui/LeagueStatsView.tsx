@@ -1,5 +1,5 @@
 import type { Mode } from '../game/board'
-import { MAX_SETS_ON_TWELVE } from '../game/set'
+import { MAX_POOL_SETS } from '../game/relabel'
 import type { LeagueStats, SoloRecord } from '../lib/leagues'
 import { formatTime } from './format'
 import { MedianChart } from './MedianChart'
@@ -23,11 +23,12 @@ export function LeagueStatsView({ stats, error, mode, currentUserId, onSelectMem
   if (error) return <p className="auth-error">{error}</p>
   if (!stats) return <p className="muted">Loading records…</p>
 
-  // Every possible set count, 1..14, whether or not anyone has played one yet,
-  // so the gaps are visible: an empty row is a record still up for grabs.
+  // Every set count a board can have, 1..10, whether or not anyone has played
+  // one yet, so the gaps are visible: an empty row is a record still up for
+  // grabs. Ten is the pool's ceiling, and there are no older 11+ boards.
   const byCount = new Map(stats.fastestBySetCount.map(({ setCount, record }) => [setCount, record]))
   const countRows: { setCount: number; record: SoloRecord | undefined }[] = Array.from(
-    { length: MAX_SETS_ON_TWELVE },
+    { length: MAX_POOL_SETS },
     (_, i) => ({ setCount: i + 1, record: byCount.get(i + 1) }),
   )
 

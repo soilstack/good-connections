@@ -19,6 +19,14 @@ import { cardFromId, DECK_SIZE, type Attr, type Card } from './cards'
 import { enumerateSets } from './set'
 import { shuffle, mulberry32, BOARD_SIZE, type Board, type RNG } from './board'
 
+/**
+ * The most sets a pool board can have: league Mode B/C days draw N from 1–10
+ * (scripts/gen-board-pool.ts, MAX_N). Exact-count sampling past 10 is too
+ * slow, so this is the real ceiling on a pool day — though 12 cards can hold
+ * up to 14, and older seed-built boards occasionally did.
+ */
+export const MAX_POOL_SETS = 10
+
 /** A 4×4 matrix over GF(3), rows then columns, in count/colour/shape/fill order. */
 export type Matrix4 = readonly (readonly Attr[])[]
 
