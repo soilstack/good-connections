@@ -27,6 +27,20 @@ import { shuffle, mulberry32, BOARD_SIZE, type Board, type RNG } from './board'
  */
 export const MAX_POOL_SETS = 10
 
+/**
+ * Mode C's one automatic finish: on a pool board, a tenth set means the board
+ * is done, because ten is the most a pool board holds. Ending the game there
+ * tells the player nothing — any player who knew the ceiling could have worked
+ * it out — whereas ending a 4-set board on its fourth set would give the game
+ * away.
+ *
+ * Pool boards only (attempts === 0): a seed-built board can hold up to 14, so
+ * stopping one at ten could end a game with sets still on it.
+ */
+export function poolBoardFinished(board: Board, foundCount: number): boolean {
+  return board.attempts === 0 && foundCount >= MAX_POOL_SETS
+}
+
 /** A 4×4 matrix over GF(3), rows then columns, in count/colour/shape/fill order. */
 export type Matrix4 = readonly (readonly Attr[])[]
 

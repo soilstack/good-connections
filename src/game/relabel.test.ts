@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { cardId, cardFromId, fullDeck } from './cards'
 import { countSets, enumerateSets, enumerateSetsBrute } from './set'
 import { mulberry32, shuffle, BOARD_SIZE } from './board'
-import { randomAffineMap, applyAffine, boardFromPool, isInvertibleMod3 } from './relabel'
+import { randomAffineMap, applyAffine, boardFromPool, isInvertibleMod3, poolBoardFinished, MAX_POOL_SETS } from './relabel'
+import type { Board } from './board'
 
 /** A random 12-card deal, for property tests only. */
 function randomBoard(rng: () => number) {
@@ -158,5 +159,29 @@ describe('boardFromPool', () => {
     expect(() => boardFromPool('B', [...POOL_IDS.slice(0, 11), 11], 1)).toThrow()
     expect(() => boardFromPool('B', [...POOL_IDS.slice(0, 11), 81], 1)).toThrow()
     expect(() => boardFromPool('B', [...POOL_IDS.slice(0, 11), 1.5], 1)).toThrow()
+  })
+})
+
+describe('poolBoardFinished', () => {
+  /** A board stub: only `attempts` (0 = from the pool) and the set count matter. */
+  const board = (attempts: number, sets: number) =>
+    ({ mode: 'C', cards: [], sets: Array.from({ length: sets }, () => [0, 1, 2] as const), attempts }) as Board
+
+  it('is true once a pool board has given up its tenth set', () => {
+    expect(MAX_POOL_SETS).toBe(10)
+    expect(poolBoardFinished(board(0, 10), 10)).toBe(true)
+  })
+
+  it('is false before the tenth', () => {
+    expect(poolBoardFinished(board(0, 10), 9)).toBe(false)
+  })
+
+  it('never fires on a smaller pool board — finding them all there must stay a secret', () => {
+    expect(poolBoardFinished(board(0, 4), 4)).toBe(false)
+  })
+
+  it('never fires on a seed-built board, which can hold more than ten', () => {
+    expect(poolBoardFinished(board(37, 12), 10)).toBe(false)
+    expect(poolBoardFinished(board(37, 10), 10)).toBe(false)
   })
 })

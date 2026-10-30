@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Board } from '../game/board'
 import { brokenAttributes, isSet, type BrokenAttribute, type Triple } from '../game/set'
+import { poolBoardFinished } from '../game/relabel'
 import {
   GameRecorder,
   deriveStats,
@@ -171,9 +172,12 @@ export function useSetGame({
       next.add(setIndex)
       setFound(next)
       flash({ kind: 'valid', cards: sorted })
-      // Modes A/B end the instant the last set is found. Mode C never
-      // auto-ends — the player must declare "done".
-      if (board.mode !== 'C' && next.size === board.sets.length) finish('completed')
+      // Modes A/B end the instant the last set is found. Mode C waits for the
+      // player to declare "done" — except on a pool board's tenth set, which
+      // can only mean the board is finished (see poolBoardFinished).
+      if (board.mode !== 'C' ? next.size === board.sets.length : poolBoardFinished(board, next.size)) {
+        finish('completed')
+      }
     },
     [board, found, recorder, flash, finish],
   )
