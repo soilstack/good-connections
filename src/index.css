@@ -1332,14 +1332,13 @@ body {
   padding-left: 18px;
   font-weight: 500;
 }
+.fa-table td.is-strong {
+  font-weight: 700;
+}
 /* Too few games behind the number to read anything into it. */
 .fa-table td.is-thin,
 .fa-cell.is-thin {
   opacity: 0.4;
-}
-.fa-table td.is-hot {
-  color: var(--bad);
-  font-weight: 700;
 }
 .fa-grid {
   display: grid;

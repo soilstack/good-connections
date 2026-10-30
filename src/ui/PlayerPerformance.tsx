@@ -194,8 +194,17 @@ export function PlayerPerformanceView({
 
           {leagueId && (
             <section className="league-stats">
-              <h2 className="section-label section-label-gap">Failure analyzer</h2>
-              <FailureAnalyzer leagueId={leagueId} games={history.games} />
+              {/* Named here, not just in the page title: this section sits far
+                  down a long page, and it is often someone else's. */}
+              <h2 className="section-label section-label-gap">
+                Failure analyzer · {history.displayName}
+                {isYou ? ' (you)' : ''}
+              </h2>
+              <FailureAnalyzer
+                leagueId={leagueId}
+                games={history.games}
+                who={{ name: history.displayName, isYou }}
+              />
             </section>
           )}
 
