@@ -1403,3 +1403,11 @@ body {
 .h2h-cell.is-open {
   border-color: var(--accent);
 }
+
+/* A day's award (Hero to Zero, Zero to Hero, the Mode C what-ifs), inside the
+   player's own match row. */
+.member-award {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--text);
+}

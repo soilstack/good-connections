@@ -149,9 +149,8 @@ export function MatchSummary({
   // would be wrong. The viewer having finished is not enough.
   const fieldComplete = reveal === 'all-played' || reveal === 'slot-closed'
   const field = rows.map((r) => ({ userId: r.userId, stats: r.stats }))
-  const named = (id: string | null) => (id === null ? null : entries.find((e) => e.userId === id) ?? null)
-  const hero = fieldComplete ? named(heroToZero(field, mode)) : null
-  const zero = fieldComplete ? named(zeroToHero(field, mode)) : null
+  const heroId = fieldComplete ? heroToZero(field, mode) : null
+  const zeroId = fieldComplete ? zeroToHero(field, mode) : null
   // Mode C: who lost the day to their own Done button.
   const lost = fieldComplete
     ? lostWins(
@@ -160,6 +159,36 @@ export function MatchSummary({
       )
     : { dithered: [], cried: [] }
   const penaltyOf = new Map(rows.map((r) => [r.userId, r.stats.penaltyMs]))
+
+  /** The day's awards for one player, shown in their own row. */
+  const awardsFor = (e: Entry) => [
+    ...(e.userId === heroId
+      ? [{ key: 'hero', icon: '🦸 → 🫠', title: 'Hero to Zero!', why: 'Fastest to five sets, then finished last.' }]
+      : []),
+    ...(e.userId === zeroId
+      ? [{ key: 'zero', icon: '🐢 → 🦸', title: 'Zero to Hero!', why: 'Slowest to five sets, then finished first.' }]
+      : []),
+    ...(lost.dithered.includes(e.userId)
+      ? [
+          {
+            key: 'dither',
+            icon: '👍🪑',
+            title: 'Sat on your thumb too long!',
+            why: `Dithered ${formatTime(e.ditheringMs ?? 0)} before Done — without that, first place.`,
+          },
+        ]
+      : []),
+    ...(lost.cried.includes(e.userId)
+      ? [
+          {
+            key: 'cried',
+            icon: '📢',
+            title: 'Cried “Done!” too often!',
+            why: `Paid ${formatTime(penaltyOf.get(e.userId) ?? 0)} in penalties — without them, first place.`,
+          },
+        ]
+      : []),
+  ]
 
   return (
     <section className="league-stats">
@@ -180,46 +209,6 @@ export function MatchSummary({
             </>
           )}
         </p>
-      )}
-
-      {hero && (
-        <p className="match-note hero-to-zero">
-          <span aria-hidden="true">🦸 → 🫠 </span>
-          <b>Hero to Zero:</b> {hero.name}
-          {hero.isYou ? ' (you)' : ''} was fastest to five sets, then finished last.
-        </p>
-      )}
-
-      {zero && (
-        <p className="match-note hero-to-zero">
-          <span aria-hidden="true">🐢 → 🦸 </span>
-          <b>Zero to Hero:</b> {zero.name}
-          {zero.isYou ? ' (you)' : ''} was slowest to five sets, then finished first.
-        </p>
-      )}
-
-      {lost.dithered.map(named).map(
-        (e) =>
-          e && (
-            <p key={`dither-${e.userId}`} className="match-note hero-to-zero">
-              <span aria-hidden="true">👍🪑 </span>
-              <b>Sat on your thumb too long!</b> {e.name}
-              {e.isYou ? ' (you)' : ''} dithered {formatTime(e.ditheringMs ?? 0)} before Done — without
-              that, first place.
-            </p>
-          ),
-      )}
-
-      {lost.cried.map(named).map(
-        (e) =>
-          e && (
-            <p key={`cried-${e.userId}`} className="match-note hero-to-zero">
-              <span aria-hidden="true">📢 </span>
-              <b>Cried “Done!” too often!</b> {e.name}
-              {e.isYou ? ' (you)' : ''} paid {formatTime(penaltyOf.get(e.userId) ?? 0)} in penalties —
-              without them, first place.
-            </p>
-          ),
       )}
 
       <ol className="member-list">
@@ -260,6 +249,12 @@ export function MatchSummary({
                 )}
               </span>
             )}
+            {awardsFor(e).map((a) => (
+              <span key={a.key} className="member-award">
+                <span aria-hidden="true">{a.icon} </span>
+                <b>{a.title}</b> {a.why}
+              </span>
+            ))}
           </li>
         ))}
       </ol>

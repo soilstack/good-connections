@@ -22,6 +22,9 @@ function row(name: string, finds: [number, number][]): LeaderboardRow {
 }
 
 const text = (svgOrHtml: string) => svgOrHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
+/** The text of one player's row in the match list. */
+const rowText = (html: string, name: string) =>
+  text(html.split('<li ').find((li) => li.includes(`member-name">${name}`))?.split('</li>')[0] ?? '')
 
 describe('MatchSummary', () => {
   it('names each player’s hardest and last set by board letter', () => {
@@ -440,7 +443,8 @@ describe('MatchSummary Hero to Zero', () => {
     const html = renderToStaticMarkup(
       <MatchSummary mode="A" rows={field} currentUserId="bea" reveal="all-played" />,
     )
-    expect(text(html)).toContain('Hero to Zero: hero was fastest to five sets, then finished last.')
+    expect(rowText(html, 'hero')).toContain('Hero to Zero! Fastest to five sets, then finished last.')
+    expect(rowText(html, 'bea')).not.toContain('Hero to Zero')
   })
 
   it('and once the day is over', () => {
@@ -469,7 +473,7 @@ describe('MatchSummary Zero to Hero', () => {
     const html = renderToStaticMarkup(
       <MatchSummary mode="A" rows={field} currentUserId="zed" reveal="all-played" />,
     )
-    expect(text(html)).toContain('Zero to Hero: zed (you) was slowest to five sets, then finished first.')
+    expect(rowText(html, 'zed')).toContain('Zero to Hero! Slowest to five sets, then finished first.')
     expect(html).not.toContain('Hero to Zero')
   })
 
@@ -496,9 +500,10 @@ describe('MatchSummary Mode C lost wins', () => {
   const field = [c('win', 65_000, 70_000), c('dith', 60_000, 80_000), c('cry', 84_000, 85_000, 20_000)]
 
   it('mocks a dither and a Done-crier once the field is complete', () => {
-    const html = text(renderToStaticMarkup(<MatchSummary mode="C" rows={field} currentUserId="win" reveal="slot-closed" />))
-    expect(html).toContain('Sat on your thumb too long! dith dithered 0:20 before Done')
-    expect(html).toContain('Cried “Done!” too often! cry paid 0:20 in penalties')
+    const html = renderToStaticMarkup(<MatchSummary mode="C" rows={field} currentUserId="win" reveal="slot-closed" />)
+    expect(rowText(html, 'dith')).toContain('Sat on your thumb too long! Dithered 0:20 before Done')
+    expect(rowText(html, 'cry')).toContain('Cried “Done!” too often! Paid 0:20 in penalties')
+    expect(rowText(html, 'win')).not.toMatch(/thumb|too often/)
   })
 
   it('says nothing while the day is live', () => {
