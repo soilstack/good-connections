@@ -22,6 +22,7 @@ import { canRevealSets, MatchSummary } from './MatchSummary'
 import { NextPuzzle } from './NextPuzzle'
 import { Stat } from './Stat'
 import { PlayerPerformance } from './PlayerPerformance'
+import { BattleHistory } from './BattleHistory'
 
 interface LeagueResultProps {
   leagueId: string
@@ -61,6 +62,8 @@ export function LeagueResult({
   const [expanded, setExpanded] = useState<string | null>(null)
   // Non-null = the member whose performance page has taken over the screen.
   const [viewing, setViewing] = useState<string | null>(null)
+  // Battle history has taken over the screen.
+  const [battlesOpen, setBattlesOpen] = useState(false)
   // League members in join order — drives stable chart colours and the
   // "everyone has played" reveal gate. Null while loading or unavailable.
   const [roster, setRoster] = useState<string[] | null>(null)
@@ -186,6 +189,18 @@ export function LeagueResult({
         userId={viewing}
         currentUserId={userId}
         onBack={() => setViewing(null)}
+      />
+    )
+  }
+
+  if (battlesOpen && leagueStats) {
+    return (
+      <BattleHistory
+        battles={leagueStats.battles}
+        leagueName={leagueName}
+        mode={mode}
+        currentUserId={userId}
+        onBack={() => setBattlesOpen(false)}
       />
     )
   }
@@ -391,6 +406,7 @@ export function LeagueResult({
         currentUserId={userId}
         onSelectMember={setViewing}
         roster={roster}
+        onOpenBattles={() => setBattlesOpen(true)}
       />
 
       <div className="summary-actions">

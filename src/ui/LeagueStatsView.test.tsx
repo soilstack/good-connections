@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { LeagueStatsView } from './LeagueStatsView'
+import { BattleHistory } from './BattleHistory'
 import { PersonalBestBanner, RecordBanner } from './LeagueResult'
 import type { LeagueStats, SoloRecord } from '../lib/leagues'
 
@@ -19,6 +20,7 @@ const base: LeagueStats = {
   notables: [],
   personalBests: [],
   results: [],
+  battles: [],
   medianSeries: [],
 }
 const noop = () => {}
@@ -167,5 +169,48 @@ describe('LeagueStatsView — Results', () => {
     expect(text(table)).toContain('Player Games 1st Perfect MDS')
     expect(text(table)).not.toContain('5 sets')
     expect(text(table)).toContain('MDS (you) 12 5(42%) 2')
+  })
+
+  it('links to Battle history only when there is a shared day to show', () => {
+    const battles = [{ displayNames: ['MDS', 'TM'], days: 3, rows: results }]
+    const withBattles = renderToStaticMarkup(
+      <LeagueStatsView stats={{ ...base, results, battles }} mode="C" currentUserId="MDS" onSelectMember={noop} onOpenBattles={noop} />,
+    )
+    expect(withBattles).toContain('Battle history')
+    const without = renderToStaticMarkup(
+      <LeagueStatsView stats={{ ...base, results }} mode="C" currentUserId="MDS" onSelectMember={noop} onOpenBattles={noop} />,
+    )
+    expect(without).not.toContain('Battle history')
+  })
+})
+
+describe('BattleHistory', () => {
+  const row = (id: string, games: number, firstPlaces: number) => ({
+    userId: id,
+    displayName: id,
+    games,
+    firstPlaces,
+    perfects: 0,
+    bestFirstFiveMs: null,
+  })
+
+  it('shows one Results table per line-up, in the order given', () => {
+    const html = text(
+      renderToStaticMarkup(
+        <BattleHistory
+          battles={[
+            { displayNames: ['MDS', 'RW'], days: 4, rows: [row('RW', 4, 3), row('MDS', 4, 1)] },
+            { displayNames: ['MDS', 'RW', 'TM'], days: 1, rows: [row('TM', 1, 1), row('MDS', 1, 0), row('RW', 1, 0)] },
+          ]}
+          leagueName="Orc Style"
+          mode="C"
+          currentUserId="MDS"
+          onBack={noop}
+        />,
+      ),
+    )
+    expect(html).toContain('MDS vs RW · 4 days Player Games 1st Perfect RW 4 3(75%) 0 MDS (you) 4 1(25%) 0')
+    expect(html).toContain('MDS vs RW vs TM · 1 day')
+    expect(html.indexOf('MDS vs RW ·')).toBeLessThan(html.indexOf('MDS vs RW vs TM'))
   })
 })

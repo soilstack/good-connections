@@ -3,7 +3,7 @@ import { generateBoard, mulberry32, type Board, type Mode } from '../game/board'
 import { boardFromPool } from '../game/relabel'
 import { runningMedian, timeSpread, type MedianPoint, type TimeSpread } from '../game/pace'
 import { zonedDateISO } from './time'
-import { personalBests, resultsTable, TOP_SOLVES, type PersonalBest, type ResultsRow } from './records'
+import { battleHistory, personalBests, resultsTable, TOP_SOLVES, type PersonalBest, type ResultsRow } from './records'
 import {
   deriveStats,
   finalSetGapMs,
@@ -292,6 +292,13 @@ export interface NotableRecord {
   games?: number
 }
 
+/** One line-up's {@link battleHistory} entry, with names attached. */
+export interface LineupResults {
+  displayNames: string[]
+  days: number
+  rows: (ResultsRow & { displayName: string })[]
+}
+
 export interface LeagueStats {
   mode: Mode
   /** Mode A: the TOP_SOLVES fastest completed solves. */
@@ -304,6 +311,8 @@ export interface LeagueStats {
   personalBests: PersonalBest[]
   /** The Results table: games, first places, perfects, best first five. */
   results: (ResultsRow & { displayName: string })[]
+  /** The Results table again, once per line-up of players that shared a day. */
+  battles: LineupResults[]
   /** Mode A: each member's running median solve time over the season. Empty in B/C. */
   medianSeries: { userId: string; displayName: string; points: MedianPoint[] }[]
 }
@@ -511,9 +520,12 @@ export async function getLeagueStats(leagueId: string, mode: Mode): Promise<Leag
     perfect: g.perfect,
   }))
   const pbs = personalBests(asPb, mode)
-  const results = resultsTable(asPb, mode).map((r) => ({
-    ...r,
-    displayName: names.get(r.userId) ?? '—',
+  const named = (r: ResultsRow) => ({ ...r, displayName: names.get(r.userId) ?? '—' })
+  const results = resultsTable(asPb, mode).map(named)
+  const battles = battleHistory(asPb, mode).map((b) => ({
+    displayNames: b.userIds.map((id) => names.get(id) ?? '—'),
+    days: b.days,
+    rows: b.rows.map(named),
   }))
 
   // Mode A only, like the Solve times table: B/C boards differ too much in
@@ -539,6 +551,7 @@ export async function getLeagueStats(leagueId: string, mode: Mode): Promise<Leag
     notables,
     personalBests: pbs,
     results,
+    battles,
     medianSeries,
   }
 }

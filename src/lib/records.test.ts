@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { heroToZero, lostWins, personalBests, recordHeld, resultsTable, zeroToHero, type PbGame } from './records'
+import {
+  battleHistory,
+  heroToZero,
+  lostWins,
+  personalBests,
+  recordHeld,
+  resultsTable,
+  zeroToHero,
+  type PbGame,
+} from './records'
 import { deriveStats, ditheringMs, type GameRecord, type TelemetryEvent } from '../game/telemetry'
 import type { SoloRecord } from './leagues'
 
@@ -420,5 +429,57 @@ describe('lostWins — Mode C', () => {
 
   it('is Mode C only', () => {
     expect(lostWins([c('win', 65_000, 70_000), c('dith', 60_000, 80_000)], 'B')).toEqual({ dithered: [], cried: [] })
+  })
+})
+
+describe('battleHistory', () => {
+  const g = (id: string, date: string, total: number) => ({ ...six(id, date, total - 10_000, total), perfect: false })
+
+  it('files each day under exactly the players who played it', () => {
+    const battles = battleHistory(
+      [
+        g('mds', '2026-10-01', 90_000),
+        g('rw', '2026-10-01', 80_000), // mds + rw
+        g('mds', '2026-10-02', 70_000),
+        g('rw', '2026-10-02', 80_000),
+        g('tm', '2026-10-02', 99_000), // all three
+        g('mds', '2026-10-03', 70_000),
+        g('rw', '2026-10-03', 75_000), // mds + rw again
+      ],
+      'A',
+    )
+    expect(battles.map((b) => [b.userIds, b.days])).toEqual([
+      [['mds', 'rw'], 2],
+      [['mds', 'rw', 'tm'], 1],
+    ])
+    // The pair's table counts only the pair's days.
+    const pair = battles[0]!.rows
+    expect(pair.find((r) => r.userId === 'mds')).toMatchObject({ games: 2, firstPlaces: 1 })
+    expect(pair.find((r) => r.userId === 'rw')).toMatchObject({ games: 2, firstPlaces: 1 })
+    expect(battles[1]!.rows.find((r) => r.userId === 'mds')).toMatchObject({ games: 1, firstPlaces: 1 })
+  })
+
+  it('leaves out days played alone', () => {
+    expect(battleHistory([g('mds', '2026-10-01', 90_000), g('rw', '2026-10-02', 80_000)], 'A')).toEqual([])
+  })
+
+  it('counts a give-up as playing the day', () => {
+    const quit = { ...game('rw', '2026-10-01', [1_000], { gaveUp: true }), perfect: false }
+    const [b] = battleHistory([g('mds', '2026-10-01', 90_000), quit], 'A')
+    expect(b!.userIds).toEqual(['mds', 'rw'])
+    expect(b!.rows.find((r) => r.userId === 'rw')).toMatchObject({ games: 1, firstPlaces: 0 })
+  })
+
+  it('puts the most-played line-up first, bigger first on a tie', () => {
+    const battles = battleHistory(
+      [
+        g('a', '2026-10-01', 100_000), g('b', '2026-10-01', 200_000),
+        g('a', '2026-10-02', 100_000), g('b', '2026-10-02', 200_000), g('c', '2026-10-02', 300_000),
+        g('b', '2026-10-03', 100_000), g('c', '2026-10-03', 200_000),
+        g('b', '2026-10-04', 100_000), g('c', '2026-10-04', 200_000),
+      ],
+      'A',
+    )
+    expect(battles.map((b) => b.userIds.join('+'))).toEqual(['b+c', 'a+b+c', 'a+b'])
   })
 })

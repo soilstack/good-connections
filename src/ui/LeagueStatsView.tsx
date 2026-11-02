@@ -3,6 +3,7 @@ import { MAX_POOL_SETS } from '../game/relabel'
 import type { LeagueStats, SoloRecord } from '../lib/leagues'
 import { formatTime } from './format'
 import { MedianChart } from './MedianChart'
+import { ResultsTable } from './ResultsTable'
 
 interface Props {
   /**
@@ -17,9 +18,19 @@ interface Props {
   onSelectMember: (userId: string) => void
   /** League members in join order, for chart colours; null when unavailable. */
   roster?: readonly string[] | null
+  /** Open Battle history. Without it, the link is not shown. */
+  onOpenBattles?: () => void
 }
 
-export function LeagueStatsView({ stats, error, mode, currentUserId, onSelectMember, roster }: Props) {
+export function LeagueStatsView({
+  stats,
+  error,
+  mode,
+  currentUserId,
+  onSelectMember,
+  roster,
+  onOpenBattles,
+}: Props) {
   if (error) return <p className="auth-error">{error}</p>
   if (!stats) return <p className="muted">Loading records…</p>
 
@@ -143,52 +154,16 @@ export function LeagueStatsView({ stats, error, mode, currentUserId, onSelectMem
       {stats.results.length > 0 && (
         <>
           <h2 className="section-label section-label-gap">Results</h2>
-          <div className="stat-table-scroll">
-            <table className="stat-table">
-              <thead>
-                <tr>
-                  <th scope="col">Player</th>
-                  <th scope="col" title="Days played, finished or not">
-                    Games
-                  </th>
-                  <th scope="col" title="Days with the fastest finished solve">
-                    1st
-                  </th>
-                  <th scope="col" title="“Perfect Play!” games">
-                    Perfect
-                  </th>
-                  {mode === 'A' && (
-                    <th scope="col" title="Fastest time to the fifth set, in a finished game">
-                      5 sets
-                    </th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {stats.results.map((r) => (
-                  <tr key={r.userId} className={r.userId === currentUserId ? 'is-you' : undefined}>
-                    <th scope="row" title={r.displayName}>
-                      {r.displayName}
-                      {r.userId === currentUserId ? ' (you)' : ''}
-                    </th>
-                    <td>{r.games}</td>
-                    <td>
-                      {r.firstPlaces}
-                      {r.games > 0 && `(${Math.round((r.firstPlaces / r.games) * 100)}%)`}
-                    </td>
-                    <td>{r.perfects}</td>
-                    {mode === 'A' && (
-                      <td>{r.bestFirstFiveMs === null ? '—' : formatTime(r.bestFirstFiveMs, true)}</td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ResultsTable rows={stats.results} mode={mode} currentUserId={currentUserId} />
           <p className="muted timeline-hint">
             1st is the fastest finished solve of the day — it counts even on a day nobody else
             played. The percentage is first places out of games played.{mode === 'A' && ' 5 sets is each player’s fastest first five sets, in a game they finished.'}
           </p>
+          {onOpenBattles && stats.battles.length > 0 && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={onOpenBattles}>
+              Battle history — results by line-up →
+            </button>
+          )}
         </>
       )}
 

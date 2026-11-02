@@ -292,3 +292,51 @@ export function lostWins(
   }
   return out
 }
+
+// --- Battle history -------------------------------------------------------------
+
+/** One line-up of players and how it has gone when exactly they met. */
+export interface Battle {
+  /** The players, in no meaningful order (sorted by id). */
+  userIds: string[]
+  /** Days on which exactly these players, and nobody else, played. */
+  days: number
+  /** The {@link resultsTable} over just those days. */
+  rows: ResultsRow[]
+}
+
+/**
+ * The Results table, once for every line-up that has played the same board:
+ * each day is filed under the exact set of players who played it, so "MDS and
+ * RW" means the days only those two played, and a day all three played is in
+ * the three-player table, not in each pair's. A day played alone is no battle
+ * and is left out.
+ *
+ * Most-played line-up first, then bigger line-ups before smaller ones.
+ *
+ * Like {@link resultsTable}, `games` must be league games only.
+ */
+export function battleHistory(games: readonly ResultsGame[], mode: Mode): Battle[] {
+  const byDate = new Map<string, ResultsGame[]>()
+  for (const g of games) byDate.set(g.puzzleDate, [...(byDate.get(g.puzzleDate) ?? []), g])
+
+  const byLineup = new Map<string, { userIds: string[]; dates: Set<string>; games: ResultsGame[] }>()
+  for (const [date, day] of byDate) {
+    const userIds = [...new Set(day.map((g) => g.userId))].sort()
+    if (userIds.length < 2) continue
+    const key = userIds.join('|')
+    const b = byLineup.get(key) ?? { userIds, dates: new Set(), games: [] }
+    b.dates.add(date)
+    b.games.push(...day)
+    byLineup.set(key, b)
+  }
+
+  return [...byLineup.values()]
+    .map((b) => ({ userIds: b.userIds, days: b.dates.size, rows: resultsTable(b.games, mode) }))
+    .sort(
+      (a, b) =>
+        b.days - a.days ||
+        b.userIds.length - a.userIds.length ||
+        a.userIds.join('|').localeCompare(b.userIds.join('|')),
+    )
+}
