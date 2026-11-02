@@ -159,9 +159,9 @@ export function LeagueStatsView({
             1st is the fastest finished solve of the day — it counts even on a day nobody else
             played. The percentage is first places out of games played.{mode === 'A' && ' 5 sets is each player’s fastest first five sets, in a game they finished.'}
           </p>
-          {onOpenBattles && stats.battles.length > 0 && (
+          {onOpenBattles && stats.headToHead.length > 0 && (
             <button type="button" className="btn btn-ghost btn-sm" onClick={onOpenBattles}>
-              Battle history — results by line-up →
+              Battle history — head to head →
             </button>
           )}
         </>

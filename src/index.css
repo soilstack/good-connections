@@ -1368,3 +1368,38 @@ body {
   font-size: 11px;
   color: var(--muted);
 }
+
+/* Battle history's head-to-head half matrix. Cells are buttons sized for a
+   thumb; the leader's colour repeats what the numbers already say. */
+.h2h-matrix thead th:not(:first-child) {
+  max-width: 64px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+.h2h-matrix td {
+  text-align: center;
+  padding: 2px;
+}
+.h2h-cell {
+  min-width: 44px;
+  min-height: 36px;
+  padding: 4px 6px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.h2h-cell.is-ahead {
+  color: var(--ok);
+  font-weight: 700;
+}
+.h2h-cell.is-behind {
+  color: var(--bad);
+}
+.h2h-cell.is-open {
+  border-color: var(--accent);
+}

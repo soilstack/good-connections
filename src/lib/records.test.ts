@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  battleHistory,
+  headToHead,
   heroToZero,
   lostWins,
   personalBests,
@@ -432,54 +432,47 @@ describe('lostWins — Mode C', () => {
   })
 })
 
-describe('battleHistory', () => {
+describe('headToHead', () => {
   const g = (id: string, date: string, total: number) => ({ ...six(id, date, total - 10_000, total), perfect: false })
+  const pair = (h: ReturnType<typeof headToHead>, a: string, b: string) =>
+    h.find((p) => p.userIds.join('|') === [a, b].sort().join('|'))!
+  const row = (p: ReturnType<typeof headToHead>[number], id: string) => p.rows.find((r) => r.userId === id)!
 
-  it('files each day under exactly the players who played it', () => {
-    const battles = battleHistory(
-      [
-        g('mds', '2026-10-01', 90_000),
-        g('rw', '2026-10-01', 80_000), // mds + rw
-        g('mds', '2026-10-02', 70_000),
-        g('rw', '2026-10-02', 80_000),
-        g('tm', '2026-10-02', 99_000), // all three
-        g('mds', '2026-10-03', 70_000),
-        g('rw', '2026-10-03', 75_000), // mds + rw again
-      ],
-      'A',
-    )
-    expect(battles.map((b) => [b.userIds, b.days])).toEqual([
+  const games = [
+    g('mds', '2026-10-01', 90_000),
+    g('rw', '2026-10-01', 80_000), // mds + rw: rw wins
+    g('mds', '2026-10-02', 70_000),
+    g('rw', '2026-10-02', 80_000),
+    g('tm', '2026-10-02', 60_000), // all three: tm, then mds, then rw
+    g('tm', '2026-10-03', 50_000), // tm alone
+  ]
+
+  it('counts every day a pair both played, whoever else did too', () => {
+    const h = headToHead(games, 'A')
+    expect(h.map((p) => [p.userIds, p.days])).toEqual([
       [['mds', 'rw'], 2],
-      [['mds', 'rw', 'tm'], 1],
+      [['mds', 'tm'], 1],
+      [['rw', 'tm'], 1],
     ])
-    // The pair's table counts only the pair's days.
-    const pair = battles[0]!.rows
-    expect(pair.find((r) => r.userId === 'mds')).toMatchObject({ games: 2, firstPlaces: 1 })
-    expect(pair.find((r) => r.userId === 'rw')).toMatchObject({ games: 2, firstPlaces: 1 })
-    expect(battles[1]!.rows.find((r) => r.userId === 'mds')).toMatchObject({ games: 1, firstPlaces: 1 })
+  })
+
+  it('gives each day’s 1st to the faster of the two, ignoring anyone else', () => {
+    const h = headToHead(games, 'A')
+    // Oct 2: tm was fastest overall, but between mds and rw it was mds.
+    expect(row(pair(h, 'mds', 'rw'), 'mds')).toMatchObject({ games: 2, firstPlaces: 1 })
+    expect(row(pair(h, 'mds', 'rw'), 'rw')).toMatchObject({ games: 2, firstPlaces: 1 })
+    expect(row(pair(h, 'mds', 'tm'), 'tm')).toMatchObject({ games: 1, firstPlaces: 1 })
+    expect(pair(h, 'mds', 'tm').rows).toHaveLength(2)
   })
 
   it('leaves out days played alone', () => {
-    expect(battleHistory([g('mds', '2026-10-01', 90_000), g('rw', '2026-10-02', 80_000)], 'A')).toEqual([])
+    expect(headToHead([g('mds', '2026-10-01', 90_000), g('rw', '2026-10-02', 80_000)], 'A')).toEqual([])
   })
 
-  it('counts a give-up as playing the day', () => {
+  it('counts a give-up as playing, and as losing to a finisher', () => {
     const quit = { ...game('rw', '2026-10-01', [1_000], { gaveUp: true }), perfect: false }
-    const [b] = battleHistory([g('mds', '2026-10-01', 90_000), quit], 'A')
-    expect(b!.userIds).toEqual(['mds', 'rw'])
-    expect(b!.rows.find((r) => r.userId === 'rw')).toMatchObject({ games: 1, firstPlaces: 0 })
-  })
-
-  it('puts the most-played line-up first, bigger first on a tie', () => {
-    const battles = battleHistory(
-      [
-        g('a', '2026-10-01', 100_000), g('b', '2026-10-01', 200_000),
-        g('a', '2026-10-02', 100_000), g('b', '2026-10-02', 200_000), g('c', '2026-10-02', 300_000),
-        g('b', '2026-10-03', 100_000), g('c', '2026-10-03', 200_000),
-        g('b', '2026-10-04', 100_000), g('c', '2026-10-04', 200_000),
-      ],
-      'A',
-    )
-    expect(battles.map((b) => b.userIds.join('+'))).toEqual(['b+c', 'a+b+c', 'a+b'])
+    const [p] = headToHead([g('mds', '2026-10-01', 90_000), quit], 'A')
+    expect(row(p!, 'rw')).toMatchObject({ games: 1, firstPlaces: 0 })
+    expect(row(p!, 'mds')).toMatchObject({ games: 1, firstPlaces: 1 })
   })
 })

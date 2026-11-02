@@ -196,7 +196,8 @@ export function LeagueResult({
   if (battlesOpen && leagueStats) {
     return (
       <BattleHistory
-        battles={leagueStats.battles}
+        pairs={leagueStats.headToHead}
+        players={leagueStats.results}
         leagueName={leagueName}
         mode={mode}
         currentUserId={userId}

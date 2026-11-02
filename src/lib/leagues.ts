@@ -3,7 +3,7 @@ import { generateBoard, mulberry32, type Board, type Mode } from '../game/board'
 import { boardFromPool } from '../game/relabel'
 import { runningMedian, timeSpread, type MedianPoint, type TimeSpread } from '../game/pace'
 import { zonedDateISO } from './time'
-import { battleHistory, personalBests, resultsTable, TOP_SOLVES, type PersonalBest, type ResultsRow } from './records'
+import { headToHead, personalBests, resultsTable, TOP_SOLVES, type PersonalBest, type ResultsRow } from './records'
 import {
   deriveStats,
   finalSetGapMs,
@@ -292,9 +292,9 @@ export interface NotableRecord {
   games?: number
 }
 
-/** One line-up's {@link battleHistory} entry, with names attached. */
-export interface LineupResults {
-  displayNames: string[]
+/** One pair's {@link headToHead} entry, with names attached. */
+export interface PairResults {
+  userIds: [string, string]
   days: number
   rows: (ResultsRow & { displayName: string })[]
 }
@@ -311,8 +311,8 @@ export interface LeagueStats {
   personalBests: PersonalBest[]
   /** The Results table: games, first places, perfects, best first five. */
   results: (ResultsRow & { displayName: string })[]
-  /** The Results table again, once per line-up of players that shared a day. */
-  battles: LineupResults[]
+  /** The Results table again, once per pair of players that shared a day. */
+  headToHead: PairResults[]
   /** Mode A: each member's running median solve time over the season. Empty in B/C. */
   medianSeries: { userId: string; displayName: string; points: MedianPoint[] }[]
 }
@@ -522,11 +522,7 @@ export async function getLeagueStats(leagueId: string, mode: Mode): Promise<Leag
   const pbs = personalBests(asPb, mode)
   const named = (r: ResultsRow) => ({ ...r, displayName: names.get(r.userId) ?? '—' })
   const results = resultsTable(asPb, mode).map(named)
-  const battles = battleHistory(asPb, mode).map((b) => ({
-    displayNames: b.userIds.map((id) => names.get(id) ?? '—'),
-    days: b.days,
-    rows: b.rows.map(named),
-  }))
+  const pairs = headToHead(asPb, mode).map((p) => ({ ...p, rows: p.rows.map(named) }))
 
   // Mode A only, like the Solve times table: B/C boards differ too much in
   // size for a season median to mean anything.
@@ -551,7 +547,7 @@ export async function getLeagueStats(leagueId: string, mode: Mode): Promise<Leag
     notables,
     personalBests: pbs,
     results,
-    battles,
+    headToHead: pairs,
     medianSeries,
   }
 }

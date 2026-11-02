@@ -293,50 +293,49 @@ export function lostWins(
   return out
 }
 
-// --- Battle history -------------------------------------------------------------
+// --- Battle history: head to head ---------------------------------------------
 
-/** One line-up of players and how it has gone when exactly they met. */
-export interface Battle {
-  /** The players, in no meaningful order (sorted by id). */
-  userIds: string[]
-  /** Days on which exactly these players, and nobody else, played. */
+/** Two players, and how it has gone on the days they both played. */
+export interface HeadToHead {
+  /** The pair, sorted by id. */
+  userIds: [string, string]
+  /** Days both of them played, whoever else did too. */
   days: number
-  /** The {@link resultsTable} over just those days. */
+  /**
+   * The {@link resultsTable} over just those days and just these two, so a
+   * "1st" is beating the other one: the faster finished solve of the pair.
+   */
   rows: ResultsRow[]
 }
 
 /**
- * The Results table, once for every line-up that has played the same board:
- * each day is filed under the exact set of players who played it, so "MDS and
- * RW" means the days only those two played, and a day all three played is in
- * the three-player table, not in each pair's. A day played alone is no battle
- * and is left out.
+ * The Results table for every pair of players who have shared a board. Each
+ * pair counts every day both played, regardless of who else did, so a day
+ * three people played counts once for each of its three pairs.
  *
- * Most-played line-up first, then bigger line-ups before smaller ones.
- *
- * Like {@link resultsTable}, `games` must be league games only.
+ * Most-shared pair first. Like {@link resultsTable}, `games` must be league
+ * games only.
  */
-export function battleHistory(games: readonly ResultsGame[], mode: Mode): Battle[] {
+export function headToHead(games: readonly ResultsGame[], mode: Mode): HeadToHead[] {
   const byDate = new Map<string, ResultsGame[]>()
   for (const g of games) byDate.set(g.puzzleDate, [...(byDate.get(g.puzzleDate) ?? []), g])
 
-  const byLineup = new Map<string, { userIds: string[]; dates: Set<string>; games: ResultsGame[] }>()
+  const byPair = new Map<string, { userIds: [string, string]; dates: Set<string>; games: ResultsGame[] }>()
   for (const [date, day] of byDate) {
-    const userIds = [...new Set(day.map((g) => g.userId))].sort()
-    if (userIds.length < 2) continue
-    const key = userIds.join('|')
-    const b = byLineup.get(key) ?? { userIds, dates: new Set(), games: [] }
-    b.dates.add(date)
-    b.games.push(...day)
-    byLineup.set(key, b)
+    const ids = [...new Set(day.map((g) => g.userId))].sort()
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        const userIds: [string, string] = [ids[i]!, ids[j]!]
+        const key = userIds.join('|')
+        const p = byPair.get(key) ?? { userIds, dates: new Set(), games: [] }
+        p.dates.add(date)
+        p.games.push(...day.filter((g) => g.userId === userIds[0] || g.userId === userIds[1]))
+        byPair.set(key, p)
+      }
+    }
   }
 
-  return [...byLineup.values()]
-    .map((b) => ({ userIds: b.userIds, days: b.dates.size, rows: resultsTable(b.games, mode) }))
-    .sort(
-      (a, b) =>
-        b.days - a.days ||
-        b.userIds.length - a.userIds.length ||
-        a.userIds.join('|').localeCompare(b.userIds.join('|')),
-    )
+  return [...byPair.values()]
+    .map((p) => ({ userIds: p.userIds, days: p.dates.size, rows: resultsTable(p.games, mode) }))
+    .sort((a, b) => b.days - a.days || a.userIds.join('|').localeCompare(b.userIds.join('|')))
 }

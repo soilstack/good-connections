@@ -20,7 +20,7 @@ const base: LeagueStats = {
   notables: [],
   personalBests: [],
   results: [],
-  battles: [],
+  headToHead: [],
   medianSeries: [],
 }
 const noop = () => {}
@@ -172,9 +172,9 @@ describe('LeagueStatsView — Results', () => {
   })
 
   it('links to Battle history only when there is a shared day to show', () => {
-    const battles = [{ displayNames: ['MDS', 'TM'], days: 3, rows: results }]
+    const headToHead = [{ userIds: ['MDS', 'TM'] as [string, string], days: 3, rows: results }]
     const withBattles = renderToStaticMarkup(
-      <LeagueStatsView stats={{ ...base, results, battles }} mode="C" currentUserId="MDS" onSelectMember={noop} onOpenBattles={noop} />,
+      <LeagueStatsView stats={{ ...base, results, headToHead }} mode="C" currentUserId="MDS" onSelectMember={noop} onOpenBattles={noop} />,
     )
     expect(withBattles).toContain('Battle history')
     const without = renderToStaticMarkup(
@@ -193,24 +193,31 @@ describe('BattleHistory', () => {
     perfects: 0,
     bestFirstFiveMs: null,
   })
-
-  it('shows one Results table per line-up, in the order given', () => {
-    const html = text(
-      renderToStaticMarkup(
-        <BattleHistory
-          battles={[
-            { displayNames: ['MDS', 'RW'], days: 4, rows: [row('RW', 4, 3), row('MDS', 4, 1)] },
-            { displayNames: ['MDS', 'RW', 'TM'], days: 1, rows: [row('TM', 1, 1), row('MDS', 1, 0), row('RW', 1, 0)] },
-          ]}
-          leagueName="Orc Style"
-          mode="C"
-          currentUserId="MDS"
-          onBack={noop}
-        />,
-      ),
+  const players = ['MDS', 'RW', 'TM', 'NEW'].map((id) => ({ userId: id, displayName: id }))
+  const pairs = [
+    { userIds: ['MDS', 'RW'] as [string, string], days: 4, rows: [row('RW', 4, 3), row('MDS', 4, 1)] },
+    { userIds: ['MDS', 'TM'] as [string, string], days: 2, rows: [row('MDS', 2, 2), row('TM', 2, 0)] },
+  ]
+  const render = () =>
+    renderToStaticMarkup(
+      <BattleHistory pairs={pairs} players={players} leagueName="Orc Style" mode="C" currentUserId="MDS" onBack={noop} />,
     )
-    expect(html).toContain('MDS vs RW · 4 days Player Games 1st Perfect RW 4 3(75%) 0 MDS (you) 4 1(25%) 0')
-    expect(html).toContain('MDS vs RW vs TM · 1 day')
-    expect(html.indexOf('MDS vs RW ·')).toBeLessThan(html.indexOf('MDS vs RW vs TM'))
+
+  it('lays the pairs out as a half matrix, row player’s wins first', () => {
+    const t = text(render())
+    // Columns MDS, RW; rows RW, TM. NEW never met anyone, so is left out.
+    expect(t).toContain('MDS RW RW 3–1')
+    expect(t).toContain('TM 0–2 —')
+    expect(t).not.toContain('NEW')
+  })
+
+  it('marks who leads each pair', () => {
+    const html = render()
+    expect(html).toContain('h2h-cell is-ahead is-open') // RW leads MDS, and opens first
+    expect(html).toContain('h2h-cell is-behind') // TM trails MDS
+  })
+
+  it('opens the most-shared pair’s full table underneath', () => {
+    expect(text(render())).toContain('MDS (you) vs RW · 4 days Player Games 1st Perfect RW 4 3(75%) 0 MDS (you) 4 1(25%) 0')
   })
 })
