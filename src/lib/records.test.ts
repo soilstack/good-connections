@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { heroToZero, personalBests, recordHeld, resultsTable, type PbGame } from './records'
+import { heroToZero, personalBests, recordHeld, resultsTable, zeroToHero, type PbGame } from './records'
 import { deriveStats, type GameRecord, type TelemetryEvent } from '../game/telemetry'
 import type { SoloRecord } from './leagues'
 
@@ -320,5 +320,44 @@ describe('heroToZero', () => {
 
   it('is Mode A only', () => {
     expect(heroToZero([p('hero', 30_000, 200_000), p('b', 40_000, 90_000), p('c', 50_000, 100_000)], 'B')).toBeNull()
+  })
+})
+
+describe('zeroToHero', () => {
+  /** A finisher whose fifth set came at `fifth` and who finished at `total`. */
+  const p = (id: string, fifth: number, total: number) => {
+    const g = six(id, '2026-10-01', fifth, total)
+    return { userId: g.userId, stats: g.stats }
+  }
+
+  it('names the player slowest to five who finished first', () => {
+    expect(zeroToHero([p('zero', 90_000, 95_000), p('b', 40_000, 100_000), p('c', 50_000, 110_000)], 'A')).toBe('zero')
+  })
+
+  it('is nobody when the slowest to five did not finish first', () => {
+    expect(zeroToHero([p('a', 90_000, 120_000), p('b', 40_000, 100_000), p('c', 50_000, 110_000)], 'A')).toBeNull()
+  })
+
+  it('needs at least three finishers', () => {
+    expect(zeroToHero([p('zero', 90_000, 95_000), p('b', 40_000, 100_000)], 'A')).toBeNull()
+  })
+
+  it('only counts finishers — someone who gave up was not “slowest to five”', () => {
+    const quit = game('q', '2026-10-01', [1, 2, 3, 4, 200_000], { gaveUp: true })
+    const rows = [
+      p('zero', 90_000, 95_000),
+      p('b', 40_000, 100_000),
+      { userId: quit.userId, stats: quit.stats },
+    ]
+    expect(zeroToHero(rows, 'A')).toBeNull() // only two finishers
+  })
+
+  it('a tie at either end is no award', () => {
+    expect(zeroToHero([p('zero', 90_000, 95_000), p('b', 90_000, 100_000), p('c', 50_000, 110_000)], 'A')).toBeNull()
+    expect(zeroToHero([p('zero', 90_000, 95_000), p('b', 40_000, 95_000), p('c', 50_000, 110_000)], 'A')).toBeNull()
+  })
+
+  it('is Mode A only', () => {
+    expect(zeroToHero([p('zero', 90_000, 95_000), p('b', 40_000, 100_000), p('c', 50_000, 110_000)], 'B')).toBeNull()
   })
 })

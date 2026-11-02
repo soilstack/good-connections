@@ -459,3 +459,24 @@ describe('MatchSummary Hero to Zero', () => {
     }
   })
 })
+
+describe('MatchSummary Zero to Hero', () => {
+  const p = (name: string, fifth: number, total: number) =>
+    row(name, [[1, 0], [2, 1], [3, 2], [4, 3], [fifth, 4], [total - 1_000, 5]])
+  const field = [p('zed', 90_000, 95_000), p('bea', 40_000, 100_000), p('cal', 50_000, 110_000)]
+
+  it('names the comeback once the field is complete', () => {
+    const html = renderToStaticMarkup(
+      <MatchSummary mode="A" rows={field} currentUserId="zed" reveal="all-played" />,
+    )
+    expect(text(html)).toContain('Zero to Hero: zed (you) was slowest to five sets, then finished first.')
+    expect(html).not.toContain('Hero to Zero')
+  })
+
+  it('not while the day is live', () => {
+    const html = renderToStaticMarkup(
+      <MatchSummary mode="A" rows={field} currentUserId="zed" reveal="you-finished" />,
+    )
+    expect(html).not.toContain('Zero to Hero')
+  })
+})

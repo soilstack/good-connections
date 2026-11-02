@@ -3,7 +3,7 @@ import type { Board, Mode } from '../game/board'
 import { canonicalChecksToFinish, tripleCount } from '../game/set'
 import { ditheringMs, findOrderString, matchHighlights, type FindOrder } from '../game/telemetry'
 import type { LeaderboardRow } from '../lib/leagues'
-import { heroToZero } from '../lib/records'
+import { heroToZero, zeroToHero } from '../lib/records'
 import { Card } from './Card'
 import { formatTime, setLabel } from './format'
 
@@ -147,14 +147,11 @@ export function MatchSummary({
   // Only once the day's field is complete: while people are still playing, a
   // later finisher can take "slowest" off the hero, and naming them early
   // would be wrong. The viewer having finished is not enough.
-  const heroId =
-    reveal === 'all-played' || reveal === 'slot-closed'
-      ? heroToZero(
-          rows.map((r) => ({ userId: r.userId, stats: r.stats })),
-          mode,
-        )
-      : null
-  const hero = heroId === null ? null : entries.find((e) => e.userId === heroId)
+  const fieldComplete = reveal === 'all-played' || reveal === 'slot-closed'
+  const field = rows.map((r) => ({ userId: r.userId, stats: r.stats }))
+  const named = (id: string | null) => (id === null ? null : entries.find((e) => e.userId === id) ?? null)
+  const hero = fieldComplete ? named(heroToZero(field, mode)) : null
+  const zero = fieldComplete ? named(zeroToHero(field, mode)) : null
 
   return (
     <section className="league-stats">
@@ -182,6 +179,14 @@ export function MatchSummary({
           <span aria-hidden="true">🦸 → 🫠 </span>
           <b>Hero to Zero:</b> {hero.name}
           {hero.isYou ? ' (you)' : ''} was fastest to five sets, then finished last.
+        </p>
+      )}
+
+      {zero && (
+        <p className="match-note hero-to-zero">
+          <span aria-hidden="true">🐢 → 🦸 </span>
+          <b>Zero to Hero:</b> {zero.name}
+          {zero.isYou ? ' (you)' : ''} was slowest to five sets, then finished first.
         </p>
       )}
 

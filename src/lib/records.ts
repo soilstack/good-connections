@@ -213,6 +213,26 @@ export function heroToZero(
   rows: readonly { userId: string; stats: GameStats }[],
   mode: Mode,
 ): string | null {
+  return turnaround(rows, mode, 'hero-to-zero')
+}
+
+/**
+ * Hero to Zero's mirror: the player who was slowest to the fifth set and then
+ * finished fastest of the day. Same rules — Mode A, finishers only, at least
+ * three of them, both ends outright — and the same caller rule on when.
+ */
+export function zeroToHero(
+  rows: readonly { userId: string; stats: GameStats }[],
+  mode: Mode,
+): string | null {
+  return turnaround(rows, mode, 'zero-to-hero')
+}
+
+function turnaround(
+  rows: readonly { userId: string; stats: GameStats }[],
+  mode: Mode,
+  which: 'hero-to-zero' | 'zero-to-hero',
+): string | null {
   if (mode !== 'A') return null
   const finishers = rows.flatMap((r) => {
     const five = timeToSetMs(r.stats, 5)
@@ -221,10 +241,13 @@ export function heroToZero(
   })
   if (finishers.length < 3) return null
 
-  const fastest = Math.min(...finishers.map((f) => f.five))
-  const slowest = Math.max(...finishers.map((f) => f.total))
-  const heroes = finishers.filter((f) => f.five === fastest)
-  const zeroes = finishers.filter((f) => f.total === slowest)
-  if (heroes.length !== 1 || zeroes.length !== 1) return null
-  return heroes[0]!.userId === zeroes[0]!.userId ? heroes[0]!.userId : null
+  // Hero to Zero goes fastest-at-five to slowest-at-the-end; Zero to Hero the
+  // other way round.
+  const [atFive, atEnd] = which === 'hero-to-zero' ? [Math.min, Math.max] : [Math.max, Math.min]
+  const fiveMark = atFive(...finishers.map((f) => f.five))
+  const endMark = atEnd(...finishers.map((f) => f.total))
+  const starts = finishers.filter((f) => f.five === fiveMark)
+  const ends = finishers.filter((f) => f.total === endMark)
+  if (starts.length !== 1 || ends.length !== 1) return null
+  return starts[0]!.userId === ends[0]!.userId ? starts[0]!.userId : null
 }
