@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { heroToZero, personalBests, recordHeld, resultsTable, zeroToHero, type PbGame } from './records'
-import { deriveStats, type GameRecord, type TelemetryEvent } from '../game/telemetry'
+import { heroToZero, lostWins, personalBests, recordHeld, resultsTable, zeroToHero, type PbGame } from './records'
+import { deriveStats, ditheringMs, type GameRecord, type TelemetryEvent } from '../game/telemetry'
 import type { SoloRecord } from './leagues'
 
 const rec = (userId: string, puzzleDate: string, timeMs: number): SoloRecord => ({
@@ -359,5 +359,66 @@ describe('zeroToHero', () => {
 
   it('is Mode A only', () => {
     expect(zeroToHero([p('zero', 90_000, 95_000), p('b', 40_000, 100_000), p('c', 50_000, 110_000)], 'B')).toBeNull()
+  })
+})
+
+describe('lostWins — Mode C', () => {
+  /**
+   * A Mode C finisher: one false Done at 5s costing `penalty`, the last set at
+   * `lastSet`, and the winning Done at `done`. Times already include the penalty.
+   */
+  const c = (userId: string, lastSet: number, done: number, penalty = 0) => {
+    const events: TelemetryEvent[] = []
+    if (penalty > 0) events.push({ t_ms: 5_000, type: 'done_attempt', payload: { complete: false, penaltyMs: penalty } })
+    events.push(
+      { t_ms: lastSet, type: 'set_valid', payload: { cards: [0, 1, 2], setIndex: 0 } },
+      { t_ms: done, type: 'done_attempt', payload: { complete: true, penaltyMs: 0 } },
+      { t_ms: done, type: 'game_end', payload: { reason: 'completed' } },
+    )
+    return { userId, stats: deriveStats({ events } as GameRecord), ditheringMs: ditheringMs(events) }
+  }
+
+  it('names a dither that cost the win', () => {
+    // dith: 60s without the 20s dither beats the 70s winner.
+    expect(lostWins([c('win', 65_000, 70_000), c('dith', 60_000, 80_000)], 'C')).toEqual({
+      dithered: ['dith'],
+      cried: [],
+    })
+  })
+
+  it('names penalties that cost the win', () => {
+    // cry: 85s with 20s of penalties → 65s, beating 70s.
+    expect(lostWins([c('win', 65_000, 70_000), c('cry', 84_000, 85_000, 20_000)], 'C')).toEqual({
+      dithered: [],
+      cried: ['cry'],
+    })
+  })
+
+  it('can name the same player for both', () => {
+    expect(lostWins([c('win', 65_000, 70_000), c('both', 60_000, 80_000, 15_000)], 'C')).toEqual({
+      dithered: ['both'],
+      cried: ['both'],
+    })
+  })
+
+  it('is nothing when taking it off would only tie or still lose', () => {
+    expect(lostWins([c('win', 65_000, 70_000), c('tie', 70_000, 80_000), c('slow', 75_000, 90_000, 10_000)], 'C')).toEqual({
+      dithered: [],
+      cried: [],
+    })
+  })
+
+  it('never names the winner', () => {
+    expect(lostWins([c('win', 10_000, 70_000, 30_000), c('b', 70_000, 90_000)], 'C').dithered).not.toContain('win')
+  })
+
+  it('ignores games given up, as the winner and as the would-be winner', () => {
+    const q = c('quit', 1_000, 2_000)
+    const quit = { ...q, stats: { ...q.stats, completed: false, abandoned: true } }
+    expect(lostWins([quit, c('dith', 60_000, 80_000)], 'C')).toEqual({ dithered: [], cried: [] })
+  })
+
+  it('is Mode C only', () => {
+    expect(lostWins([c('win', 65_000, 70_000), c('dith', 60_000, 80_000)], 'B')).toEqual({ dithered: [], cried: [] })
   })
 })

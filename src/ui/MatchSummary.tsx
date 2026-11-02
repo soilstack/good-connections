@@ -3,7 +3,7 @@ import type { Board, Mode } from '../game/board'
 import { canonicalChecksToFinish, tripleCount } from '../game/set'
 import { ditheringMs, findOrderString, matchHighlights, type FindOrder } from '../game/telemetry'
 import type { LeaderboardRow } from '../lib/leagues'
-import { heroToZero, zeroToHero } from '../lib/records'
+import { heroToZero, lostWins, zeroToHero } from '../lib/records'
 import { Card } from './Card'
 import { formatTime, setLabel } from './format'
 
@@ -152,6 +152,14 @@ export function MatchSummary({
   const named = (id: string | null) => (id === null ? null : entries.find((e) => e.userId === id) ?? null)
   const hero = fieldComplete ? named(heroToZero(field, mode)) : null
   const zero = fieldComplete ? named(zeroToHero(field, mode)) : null
+  // Mode C: who lost the day to their own Done button.
+  const lost = fieldComplete
+    ? lostWins(
+        rows.map((r) => ({ userId: r.userId, stats: r.stats, ditheringMs: ditheringMs(r.events) })),
+        mode,
+      )
+    : { dithered: [], cried: [] }
+  const penaltyOf = new Map(rows.map((r) => [r.userId, r.stats.penaltyMs]))
 
   return (
     <section className="league-stats">
@@ -188,6 +196,30 @@ export function MatchSummary({
           <b>Zero to Hero:</b> {zero.name}
           {zero.isYou ? ' (you)' : ''} was slowest to five sets, then finished first.
         </p>
+      )}
+
+      {lost.dithered.map(named).map(
+        (e) =>
+          e && (
+            <p key={`dither-${e.userId}`} className="match-note hero-to-zero">
+              <span aria-hidden="true">👍🪑 </span>
+              <b>Sat on your thumb too long!</b> {e.name}
+              {e.isYou ? ' (you)' : ''} dithered {formatTime(e.ditheringMs ?? 0)} before Done — without
+              that, first place.
+            </p>
+          ),
+      )}
+
+      {lost.cried.map(named).map(
+        (e) =>
+          e && (
+            <p key={`cried-${e.userId}`} className="match-note hero-to-zero">
+              <span aria-hidden="true">📢 </span>
+              <b>Cried “Done!” too often!</b> {e.name}
+              {e.isYou ? ' (you)' : ''} paid {formatTime(penaltyOf.get(e.userId) ?? 0)} in penalties —
+              without them, first place.
+            </p>
+          ),
       )}
 
       <ol className="member-list">

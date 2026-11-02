@@ -251,3 +251,44 @@ function turnaround(
   if (starts.length !== 1 || ends.length !== 1) return null
   return starts[0]!.userId === ends[0]!.userId ? starts[0]!.userId : null
 }
+
+// --- Mode C: the win that got away ----------------------------------------------
+
+export interface LostWins {
+  /** Would have won with a zero dither: "Sat on your thumb too long!" */
+  dithered: string[]
+  /** Would have won with no false-Done penalties: "Cried 'Done!' too often!" */
+  cried: string[]
+}
+
+/**
+ * Mode C's two what-ifs: who lost the day to their own Done button. Each takes
+ * ONE thing off a finisher's own time and leaves everyone else's as it was:
+ *
+ * - `dithered`: their final dither (finding the last set to pressing Done);
+ * - `cried`: every penalty their premature Dones cost them.
+ *
+ * Only for someone who did not already win, and only when the reduced time
+ * would win outright — matching the winner is not winning. A player can be in
+ * both lists. Finishers only, on both sides: a give-up is no time to beat.
+ *
+ * Like {@link heroToZero}, the caller shows these only once the field is
+ * complete, since a later finisher can change who won.
+ */
+export function lostWins(
+  rows: readonly { userId: string; stats: GameStats; ditheringMs: number | null }[],
+  mode: Mode,
+): LostWins {
+  const out: LostWins = { dithered: [], cried: [] }
+  if (mode !== 'C') return out
+  const finishers = rows.filter((r) => r.stats.completed && r.stats.totalTimeMs !== null)
+  if (finishers.length < 2) return out
+  const winning = Math.min(...finishers.map((r) => r.stats.totalTimeMs!))
+  for (const r of finishers) {
+    const total = r.stats.totalTimeMs!
+    if (total === winning) continue
+    if (r.ditheringMs !== null && r.ditheringMs > 0 && total - r.ditheringMs < winning) out.dithered.push(r.userId)
+    if (r.stats.penaltyMs > 0 && total - r.stats.penaltyMs < winning) out.cried.push(r.userId)
+  }
+  return out
+}

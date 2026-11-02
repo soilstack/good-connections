@@ -480,3 +480,32 @@ describe('MatchSummary Zero to Hero', () => {
     expect(html).not.toContain('Zero to Hero')
   })
 })
+
+describe('MatchSummary Mode C lost wins', () => {
+  /** One set found at `lastSet`, Done at `done`, after a false Done costing `penalty`. */
+  const c = (name: string, lastSet: number, done: number, penalty = 0): LeaderboardRow => {
+    const events: TelemetryEvent[] = []
+    if (penalty > 0) events.push({ t_ms: 500, type: 'done_attempt', payload: { complete: false, penaltyMs: penalty } })
+    events.push(
+      { t_ms: lastSet, type: 'set_valid', payload: { cards: [0, 1, 2], setIndex: 0 } },
+      { t_ms: done, type: 'done_attempt', payload: { complete: true, penaltyMs: 0 } },
+      { t_ms: done, type: 'game_end', payload: { reason: 'completed' } },
+    )
+    return { userId: name, displayName: name, stats: deriveStats({ events } as GameRecord), events }
+  }
+  const field = [c('win', 65_000, 70_000), c('dith', 60_000, 80_000), c('cry', 84_000, 85_000, 20_000)]
+
+  it('mocks a dither and a Done-crier once the field is complete', () => {
+    const html = text(renderToStaticMarkup(<MatchSummary mode="C" rows={field} currentUserId="win" reveal="slot-closed" />))
+    expect(html).toContain('Sat on your thumb too long! dith dithered 0:20 before Done')
+    expect(html).toContain('Cried “Done!” too often! cry paid 0:20 in penalties')
+  })
+
+  it('says nothing while the day is live', () => {
+    for (const reveal of [null, 'you-finished'] as const) {
+      const html = renderToStaticMarkup(<MatchSummary mode="C" rows={field} currentUserId="win" reveal={reveal} />)
+      expect(html).not.toContain('Sat on your thumb')
+      expect(html).not.toContain('too often')
+    }
+  })
+})
