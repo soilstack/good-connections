@@ -206,15 +206,25 @@ describe('BattleHistory', () => {
   it('lays the pairs out as a half matrix, row player’s wins first', () => {
     const t = text(render())
     // Columns MDS, RW; rows RW, TM. NEW never met anyone, so is left out.
-    expect(t).toContain('MDS RW RW 3–1')
-    expect(t).toContain('TM 0–2 —')
+    expect(t).toContain('MDS RW RW 3 – 1')
+    expect(t).toContain('TM 0 – 2 —')
     expect(t).not.toContain('NEW')
   })
 
-  it('marks who leads each pair', () => {
+  it('bolds the leader’s number, whichever side of the cell it is on', () => {
     const html = render()
-    expect(html).toContain('h2h-cell is-ahead is-open') // RW leads MDS, and opens first
-    expect(html).toContain('h2h-cell is-behind') // TM trails MDS
+    // RW (row) leads MDS (column) 3–1; that pair opens first.
+    expect(html).toContain('h2h-cell is-open" aria-pressed="true" aria-label="RW 3, MDS 1, over 4 days"><span class="h2h-lead">3</span>–<span class="h2h-trail">1</span>')
+    // MDS (column) leads TM (row) 2–0: the bold goes on the right-hand number.
+    expect(html).toContain('<span class="h2h-trail">0</span>–<span class="h2h-lead">2</span>')
+  })
+
+  it('leaves a tie plain', () => {
+    const tied = [{ userIds: ['MDS', 'RW'] as [string, string], days: 2, rows: [row('RW', 2, 1), row('MDS', 2, 1)] }]
+    const html = renderToStaticMarkup(
+      <BattleHistory pairs={tied} players={players} leagueName="x" mode="C" currentUserId="MDS" onBack={noop} />,
+    )
+    expect(html).toContain('<span>1</span>–<span>1</span>')
   })
 
   it('opens the most-shared pair’s full table underneath', () => {

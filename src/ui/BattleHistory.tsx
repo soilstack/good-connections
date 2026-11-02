@@ -91,17 +91,22 @@ export function BattleHistory({
                       const wins = (id: string) => p.rows.find((x) => x.userId === id)?.firstPlaces ?? 0
                       const rw = wins(r.userId)
                       const cw = wins(c.userId)
-                      const lead = rw > cw ? ' is-ahead' : rw < cw ? ' is-behind' : ''
+                      // The leader's number bold, the other greyed; a tie plain.
+                      // Marks the number, not the cell, so it points at
+                      // whichever of the two is ahead, row or column.
+                      const side = (mine: number, theirs: number) =>
+                        mine > theirs ? 'h2h-lead' : mine < theirs ? 'h2h-trail' : undefined
                       return (
                         <td key={c.userId}>
                           <button
                             type="button"
-                            className={`h2h-cell${lead}${selected === key ? ' is-open' : ''}`}
+                            className={`h2h-cell${selected === key ? ' is-open' : ''}`}
                             aria-pressed={selected === key}
                             aria-label={`${r.displayName} ${rw}, ${c.displayName} ${cw}, over ${p.days} days`}
                             onClick={() => setSelected(key)}
                           >
-                            {rw}–{cw}
+                            <span className={side(rw, cw)}>{rw}</span>–
+                            <span className={side(cw, rw)}>{cw}</span>
                           </button>
                         </td>
                       )
@@ -112,9 +117,9 @@ export function BattleHistory({
             </table>
           </div>
           <p className="muted timeline-hint">
-            Read across: the row player’s wins first, then the column player’s. A win is the
-            faster finished solve of the two on a day both played, whoever else played too. Tap a
-            pair for its full table.
+            Read across: the row player’s wins first, then the column player’s; the leader’s
+            number is in bold. A win is the faster finished solve of the two on a day both played,
+            whoever else played too. Tap a pair for its full table.
           </p>
 
           {open && (

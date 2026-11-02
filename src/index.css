@@ -1370,7 +1370,8 @@ body {
 }
 
 /* Battle history's head-to-head half matrix. Cells are buttons sized for a
-   thumb; the leader's colour repeats what the numbers already say. */
+   thumb. The leader's NUMBER is bold and the other greyed — marking the number
+   rather than colouring the cell, so it points at whichever player leads. */
 .h2h-matrix thead th:not(:first-child) {
   max-width: 64px;
   overflow: hidden;
@@ -1393,12 +1394,11 @@ body {
   font-variant-numeric: tabular-nums;
   cursor: pointer;
 }
-.h2h-cell.is-ahead {
-  color: var(--ok);
-  font-weight: 700;
+.h2h-lead {
+  font-weight: 800;
 }
-.h2h-cell.is-behind {
-  color: var(--bad);
+.h2h-trail {
+  color: var(--muted);
 }
 .h2h-cell.is-open {
   border-color: var(--accent);
