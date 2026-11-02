@@ -51,7 +51,7 @@ export function SolveTimelineView({ events }: { events: TelemetryEvent[] }) {
         <li className="timeline-step timeline-done">
           <span className="ts-num">Done</span>
           <span className="ts-at">{formatTime(lastAt + dither, true)}</span>
-          <span className="ts-gap">+{formatTime(dither, true)} sat on it</span>
+          <span className="ts-gap">+{formatTime(dither, true)} dithered</span>
         </li>
       )}
     </ol>

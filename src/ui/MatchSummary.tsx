@@ -203,7 +203,7 @@ export function MatchSummary({
                     </>
                   )}
                   last <b>{e.last.label}</b> at {formatTime(e.last.atMs)}
-                  {e.ditheringMs !== null && <> · sat on it {formatTime(e.ditheringMs)}</>}
+                  {e.ditheringMs !== null && <> · dithered {formatTime(e.ditheringMs)}</>}
                 </>
               )}
             </span>
