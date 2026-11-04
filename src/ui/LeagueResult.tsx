@@ -23,6 +23,7 @@ import { NextPuzzle } from './NextPuzzle'
 import { Stat } from './Stat'
 import { PlayerPerformance } from './PlayerPerformance'
 import { BattleHistory } from './BattleHistory'
+import { SetCountRecords } from './SetCountRecords'
 
 interface LeagueResultProps {
   leagueId: string
@@ -64,6 +65,8 @@ export function LeagueResult({
   const [viewing, setViewing] = useState<string | null>(null)
   // Battle history has taken over the screen.
   const [battlesOpen, setBattlesOpen] = useState(false)
+  // Modes B and C: the set count whose top five has taken over the screen.
+  const [setCountOpen, setSetCountOpen] = useState<number | null>(null)
   // League members in join order — drives stable chart colours and the
   // "everyone has played" reveal gate. Null while loading or unavailable.
   const [roster, setRoster] = useState<string[] | null>(null)
@@ -189,6 +192,19 @@ export function LeagueResult({
         userId={viewing}
         currentUserId={userId}
         onBack={() => setViewing(null)}
+      />
+    )
+  }
+
+  if (setCountOpen !== null && leagueStats) {
+    return (
+      <SetCountRecords
+        setCount={setCountOpen}
+        records={leagueStats.topBySetCount.find((t) => t.setCount === setCountOpen)?.records ?? []}
+        leagueName={leagueName}
+        mode={mode}
+        currentUserId={userId}
+        onBack={() => setSetCountOpen(null)}
       />
     )
   }
@@ -408,6 +424,7 @@ export function LeagueResult({
         onSelectMember={setViewing}
         roster={roster}
         onOpenBattles={() => setBattlesOpen(true)}
+        onSelectSetCount={setSetCountOpen}
       />
 
       <div className="summary-actions">

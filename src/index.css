@@ -1411,3 +1411,19 @@ body {
   font-size: 13px;
   color: var(--text);
 }
+
+/* A "Fastest by set count" row that opens that set count's top five. */
+.record-row.is-tappable {
+  width: 100%;
+  min-height: 44px;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.record-row.is-tappable:active {
+  background: var(--surface-2);
+}
+.record-row.is-you {
+  border-color: var(--accent);
+}

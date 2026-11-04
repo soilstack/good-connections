@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { LeagueStatsView } from './LeagueStatsView'
 import { BattleHistory } from './BattleHistory'
+import { SetCountRecords } from './SetCountRecords'
 import { PersonalBestBanner, RecordBanner } from './LeagueResult'
 import type { LeagueStats, SoloRecord } from '../lib/leagues'
 
@@ -16,6 +17,7 @@ const base: LeagueStats = {
   mode: 'C',
   topSolves: [],
   fastestBySetCount: [],
+  topBySetCount: [],
   members: [],
   notables: [],
   personalBests: [],
@@ -50,6 +52,37 @@ describe('LeagueStatsView — fastest by set count', () => {
       <LeagueStatsView stats={base} mode="C" currentUserId="MDS" onSelectMember={noop} />,
     )
     expect(html.match(/record-row is-empty/g)?.length).toBe(10)
+  })
+
+  it('makes a held set count tappable, and an empty one not', () => {
+    const stats = { ...base, fastestBySetCount: [{ setCount: 3, record: rec('MDS', 55_700) }] }
+    const html = renderToStaticMarkup(
+      <LeagueStatsView stats={stats} mode="C" currentUserId="MDS" onSelectMember={noop} onSelectSetCount={noop} />,
+    )
+    expect(html.match(/<button[^>]*record-row is-tappable/g)?.length).toBe(1)
+    expect(text(html)).toContain('Tap a set count for its five fastest.')
+  })
+})
+
+describe('SetCountRecords', () => {
+  it('lists the five fastest for that set count, with a way back', () => {
+    const records = [rec('MDS', 41_000), rec('RW', 45_000, '2026-10-03'), rec('MDS', 47_500, '2026-10-09')]
+    const html = text(
+      renderToStaticMarkup(
+        <SetCountRecords setCount={6} records={records} leagueName="Orc Style" mode="C" currentUserId="MDS" onBack={noop} />,
+      ),
+    )
+    expect(html).toContain('Fastest on 6 sets')
+    expect(html).toContain('1 MDS (you) 2026-10-01 0:41.0 2 RW 2026-10-03 0:45.0 3 MDS (you) 2026-10-09 0:47.5')
+    expect(html).toContain('← Back to records')
+  })
+
+  it('says so when nobody has finished one', () => {
+    const html = renderToStaticMarkup(
+      <SetCountRecords setCount={1} records={[]} leagueName="x" mode="B" currentUserId="MDS" onBack={noop} />,
+    )
+    expect(text(html)).toContain('Fastest on 1 set ')
+    expect(text(html)).toContain('No completed solves of a 1-set board yet.')
   })
 })
 

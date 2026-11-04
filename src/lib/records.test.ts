@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  fastestPerSetCount,
   headToHead,
   heroToZero,
   lostWins,
@@ -474,5 +475,36 @@ describe('headToHead', () => {
     const [p] = headToHead([g('mds', '2026-10-01', 90_000), quit], 'A')
     expect(row(p!, 'rw')).toMatchObject({ games: 1, firstPlaces: 0 })
     expect(row(p!, 'mds')).toMatchObject({ games: 1, firstPlaces: 1 })
+  })
+})
+
+describe('fastestPerSetCount', () => {
+  const s = (setCount: number, userId: string, timeMs: number, date = '2026-10-01') => ({
+    setCount,
+    record: rec(userId, date, timeMs),
+  })
+
+  it('keeps the five fastest for each set count, fastest first', () => {
+    const out = fastestPerSetCount([
+      s(6, 'a', 90_000), s(6, 'b', 60_000), s(6, 'c', 80_000), s(6, 'd', 70_000),
+      s(6, 'e', 100_000), s(6, 'f', 50_000), // six solves: e, the slowest, drops off
+      s(2, 'a', 20_000),
+    ])
+    expect(out.map((o) => o.setCount)).toEqual([2, 6])
+    expect(out[1]!.records.map((r) => r.userId)).toEqual(['f', 'b', 'd', 'c', 'a'])
+  })
+
+  it('lets one player hold several places', () => {
+    const out = fastestPerSetCount([s(4, 'mds', 50_000, '2026-10-01'), s(4, 'mds', 40_000, '2026-10-02'), s(4, 'rw', 45_000)])
+    expect(out[0]!.records.map((r) => `${r.userId}@${r.puzzleDate}`)).toEqual([
+      'mds@2026-10-02',
+      'rw@2026-10-01',
+      'mds@2026-10-01',
+    ])
+  })
+
+  it('ranks the earlier day first on an exact tie', () => {
+    const out = fastestPerSetCount([s(3, 'late', 30_000, '2026-10-05'), s(3, 'early', 30_000, '2026-10-02')])
+    expect(out[0]!.records.map((r) => r.userId)).toEqual(['early', 'late'])
   })
 })

@@ -20,6 +20,8 @@ interface Props {
   roster?: readonly string[] | null
   /** Open Battle history. Without it, the link is not shown. */
   onOpenBattles?: () => void
+  /** Modes B and C: open one set count's five fastest. Without it, rows are not tappable. */
+  onSelectSetCount?: (setCount: number) => void
 }
 
 export function LeagueStatsView({
@@ -30,6 +32,7 @@ export function LeagueStatsView({
   onSelectMember,
   roster,
   onOpenBattles,
+  onSelectSetCount,
 }: Props) {
   if (error) return <p className="auth-error">{error}</p>
   if (!stats) return <p className="muted">Loading records…</p>
@@ -63,26 +66,47 @@ export function LeagueStatsView({
         )
       ) : (
         <ol className="record-list">
-          {countRows.map(({ setCount, record }) =>
-            record ? (
-              <li key={setCount} className="record-row">
-                <span className="record-rank">
-                  {setCount} set{setCount === 1 ? '' : 's'}
-                </span>
-                <span className="record-name">{record.displayName}</span>
-                <span className="record-meta">{record.puzzleDate}</span>
-                <span className="record-time">{formatTime(record.timeMs, true)}</span>
-              </li>
-            ) : (
+          {countRows.map(({ setCount, record }) => {
+            if (record) {
+              const cells = (
+                <>
+                  <span className="record-rank">
+                    {setCount} set{setCount === 1 ? '' : 's'}
+                  </span>
+                  <span className="record-name">{record.displayName}</span>
+                  <span className="record-meta">{record.puzzleDate}</span>
+                  <span className="record-time">{formatTime(record.timeMs, true)}</span>
+                </>
+              )
+              return onSelectSetCount ? (
+                <li key={setCount}>
+                  <button
+                    type="button"
+                    className="record-row is-tappable"
+                    onClick={() => onSelectSetCount(setCount)}
+                  >
+                    {cells}
+                  </button>
+                </li>
+              ) : (
+                <li key={setCount} className="record-row">
+                  {cells}
+                </li>
+              )
+            }
+            return (
               <li key={setCount} className="record-row is-empty">
                 <span className="record-rank">
                   {setCount} set{setCount === 1 ? '' : 's'}
                 </span>
                 <span className="record-name">—</span>
               </li>
-            ),
-          )}
+            )
+          })}
         </ol>
+      )}
+      {mode !== 'A' && onSelectSetCount && stats.fastestBySetCount.length > 0 && (
+        <p className="muted timeline-hint">Tap a set count for its five fastest.</p>
       )}
 
       {/* Mode A only, deliberately. Every Mode A board has exactly six sets, so

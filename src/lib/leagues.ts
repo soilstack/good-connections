@@ -3,7 +3,7 @@ import { generateBoard, mulberry32, type Board, type Mode } from '../game/board'
 import { boardFromPool } from '../game/relabel'
 import { runningMedian, timeSpread, type MedianPoint, type TimeSpread } from '../game/pace'
 import { zonedDateISO } from './time'
-import { headToHead, personalBests, resultsTable, TOP_SOLVES, type PersonalBest, type ResultsRow } from './records'
+import { fastestPerSetCount, headToHead, personalBests, resultsTable, TOP_SOLVES, type PersonalBest, type ResultsRow } from './records'
 import {
   deriveStats,
   finalSetGapMs,
@@ -305,6 +305,8 @@ export interface LeagueStats {
   topSolves: SoloRecord[]
   /** Mode B: fastest completed solve for each board set-count. */
   fastestBySetCount: { setCount: number; record: SoloRecord }[]
+  /** Modes B and C: the TOP_SOLVES fastest completed solves for each set count. */
+  topBySetCount: { setCount: number; records: SoloRecord[] }[]
   members: MemberStat[]
   notables: NotableRecord[]
   /** Every game that set a personal best, oldest first. */
@@ -383,21 +385,13 @@ export async function getLeagueStats(leagueId: string, mode: Mode): Promise<Leag
       puzzleDate: g.date,
     }))
 
-  const byCount = new Map<number, SoloRecord>()
-  for (const g of completed) {
-    const cur = byCount.get(g.setCount)
-    if (!cur || g.stats.totalTimeMs! < cur.timeMs) {
-      byCount.set(g.setCount, {
-        userId: g.userId,
-        displayName: g.name,
-        timeMs: g.stats.totalTimeMs!,
-        puzzleDate: g.date,
-      })
-    }
-  }
-  const fastestBySetCount = [...byCount.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .map(([setCount, record]) => ({ setCount, record }))
+  const topBySetCount = fastestPerSetCount(
+    completed.map((g) => ({
+      setCount: g.setCount,
+      record: { userId: g.userId, displayName: g.name, timeMs: g.stats.totalTimeMs!, puzzleDate: g.date },
+    })),
+  )
+  const fastestBySetCount = topBySetCount.map(({ setCount, records }) => ({ setCount, record: records[0]! }))
 
   const byUser = new Map<string, typeof games>()
   for (const g of games) {
@@ -543,6 +537,7 @@ export async function getLeagueStats(leagueId: string, mode: Mode): Promise<Leag
     mode,
     topSolves,
     fastestBySetCount,
+    topBySetCount,
     members,
     notables,
     personalBests: pbs,

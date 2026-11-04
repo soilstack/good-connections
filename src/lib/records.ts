@@ -8,7 +8,7 @@
  */
 import type { Mode } from '../game/board'
 import { timeToSetMs, type GameStats } from '../game/telemetry'
-import type { LeagueStats } from './leagues'
+import type { LeagueStats, SoloRecord } from './leagues'
 
 /** How many of the fastest Mode A solves the league lists, and congratulates. */
 export const TOP_SOLVES = 5
@@ -46,6 +46,29 @@ export function recordHeld(
 
   const hit = stats.fastestBySetCount.find(({ record }) => mine(record))
   return hit ? { kind: 'set-count', setCount: hit.setCount, timeMs: hit.record.timeMs } : null
+}
+
+/**
+ * Modes B and C: the {@link TOP_SOLVES} fastest completed solves for each
+ * board size, fastest first, set counts in ascending order. Only set counts
+ * someone has finished appear. A player may hold several places, as in Mode A's
+ * top five; on an exact tie the earlier day ranks first.
+ *
+ * `solves` must be completed league games only.
+ */
+export function fastestPerSetCount(
+  solves: readonly { setCount: number; record: SoloRecord }[],
+): { setCount: number; records: SoloRecord[] }[] {
+  const byCount = new Map<number, SoloRecord[]>()
+  for (const { setCount, record } of solves) byCount.set(setCount, [...(byCount.get(setCount) ?? []), record])
+  return [...byCount.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([setCount, records]) => ({
+      setCount,
+      records: [...records]
+        .sort((a, b) => a.timeMs - b.timeMs || a.puzzleDate.localeCompare(b.puzzleDate))
+        .slice(0, TOP_SOLVES),
+    }))
 }
 
 // --- personal bests ---------------------------------------------------------
