@@ -462,6 +462,25 @@ describe('MatchSummary Hero to Zero', () => {
       expect(html).not.toContain('Hero to Zero')
     }
   })
+
+  it('never in Modes B or C, even on a field that would qualify', () => {
+    const zeroField = [p('zed', 90_000, 95_000), p('bea', 40_000, 100_000), p('cal', 50_000, 110_000)]
+    for (const mode of ['B', 'C'] as const) {
+      for (const rows of [field, zeroField]) {
+        const html = renderToStaticMarkup(<MatchSummary mode={mode} rows={rows} currentUserId="bea" reveal="all-played" />)
+        expect(html).not.toMatch(/Hero to Zero|Zero to Hero/)
+      }
+    }
+  })
+
+  it('needs three finishers: two plus a give-up is not enough', () => {
+    const quit = p('cal', 50_000, 100_000)
+    quit.stats = { ...quit.stats, completed: false, abandoned: true }
+    const html = renderToStaticMarkup(
+      <MatchSummary mode="A" rows={[field[0]!, field[1]!, quit]} currentUserId="bea" reveal="all-played" />,
+    )
+    expect(html).not.toMatch(/Hero to Zero|Zero to Hero/)
+  })
 })
 
 describe('MatchSummary Zero to Hero', () => {
